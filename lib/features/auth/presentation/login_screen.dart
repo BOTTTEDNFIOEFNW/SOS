@@ -172,13 +172,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        child: const Text('Lupa Password?'),
-                      ),
-                    ),
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: TextButton(
+                    //     onPressed: () {},
+                    //     child: const Text('Lupa Password?'),
+                    //   ),
+                    // ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,

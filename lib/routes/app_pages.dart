@@ -4,6 +4,7 @@ import '../features/auth/presentation/officer_login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/splash/presentation/splash_screen.dart';
+import "../features/report/presentation/emergency_report_form_page.dart";
 import 'app_routes.dart';
 
 class AppPages {
@@ -23,6 +24,10 @@ class AppPages {
 
       case AppRoutes.home:
         return MaterialPageRoute(builder: (_) => const HomePage());
+
+      case AppRoutes.emergencyReportForm:
+        return MaterialPageRoute(
+            builder: (_) => const EmergencyReportFormPage());
 
       default:
         return MaterialPageRoute(

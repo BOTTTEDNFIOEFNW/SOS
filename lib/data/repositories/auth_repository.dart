@@ -2,6 +2,7 @@ import '../../core/storage/secure_storage_service.dart';
 import '../models/auth/login_request_model.dart';
 import '../models/auth/login_response_model.dart';
 import '../models/auth/register_request_model.dart';
+import '../models/auth/user_model.dart';
 import '../services/auth_api_service.dart';
 
 class AuthRepository {
@@ -67,12 +68,30 @@ class AuthRepository {
     );
   }
 
+  Future<UserModel> getMe() async {
+    return authApiService.getMe();
+  }
+
   Future<bool> hasSession() async {
     final token = await secureStorageService.getAccessToken();
     return token != null && token.isNotEmpty;
   }
 
   Future<void> logout() async {
+    final refreshToken = await secureStorageService.getRefreshToken();
+
+    try {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await authApiService.logout(refreshToken: refreshToken);
+      }
+    } catch (_) {
+      // backend logout failure should not block local logout
+    } finally {
+      await secureStorageService.clearSession();
+    }
+  }
+
+  Future<void> clearSession() async {
     await secureStorageService.clearSession();
   }
 }

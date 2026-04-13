@@ -6,6 +6,7 @@ import '../../core/network/dio_error_handler.dart';
 import '../models/auth/login_request_model.dart';
 import '../models/auth/login_response_model.dart';
 import '../models/auth/register_request_model.dart';
+import '../models/auth/user_model.dart';
 
 class AuthApiService {
   final DioClient dioClient;
@@ -52,6 +53,41 @@ class AuthApiService {
         ApiConstants.userRegister,
         data: request.toJson(),
       );
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<void> logout({
+    required String refreshToken,
+  }) async {
+    try {
+      await dioClient.dio.post(
+        ApiConstants.logout,
+        data: {
+          'refreshToken': refreshToken,
+        },
+      );
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<UserModel> getMe() async {
+    try {
+      final Response response = await dioClient.dio.get(ApiConstants.me);
+
+      final data = response.data['data'] ?? {};
+
+      return UserModel.fromJson(data);
     } catch (error) {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;

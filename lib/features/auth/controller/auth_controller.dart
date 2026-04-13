@@ -101,6 +101,40 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> hydrateUser() async {
+    try {
+      final user = await authRepository.getMe();
+      currentUser = user;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      currentUser = null;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> checkSessionAndHydrate() async {
+    final hasSession = await authRepository.hasSession();
+
+    if (!hasSession) {
+      currentUser = null;
+      notifyListeners();
+      return false;
+    }
+
+    final hydrated = await hydrateUser();
+
+    if (!hydrated) {
+      await authRepository.clearSession();
+      currentUser = null;
+      notifyListeners();
+      return false;
+    }
+
+    return true;
+  }
+
   Future<bool> hasSession() async {
     return authRepository.hasSession();
   }
