@@ -25,6 +25,7 @@ dependencies:
   latlong2: ^0.9.1
   url_launcher: ^6.3.2
   flutter_dotenv: ^6.0.0
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:
