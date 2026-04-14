@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../report/presentation/emergency_report_form_page.dart';
 
 class UserDashboardPage extends StatelessWidget {
   const UserDashboardPage({super.key});
@@ -41,14 +42,106 @@ class UserDashboardPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _UserLocationCard(),
-                    const SizedBox(height: 20),
-                    _UserSOSCard(
+                    // const SizedBox(height: 20),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(title: 'Layanan Cepat'),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionCard(
+                            title: 'Ambulans',
+                            icon: Icons.local_hospital_rounded,
+                            iconColor: const Color(0xFF3B82F6),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EmergencyReportFormPage(
+                                    initialEmergencyType: 'AMBULANCE',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _ActionCard(
+                            title: 'Kebakaran',
+                            icon: Icons.local_fire_department_rounded,
+                            iconColor: const Color(0xFFFF6B2D),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EmergencyReportFormPage(
+                                    initialEmergencyType: 'FIRE',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionCard(
+                            title: 'Kriminal',
+                            icon: Icons.shield_outlined,
+                            iconColor: const Color(0xFFEF4444),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EmergencyReportFormPage(
+                                    initialEmergencyType: 'CRIME',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _ActionCard(
+                            title: 'RS Terdekat',
+                            icon: Icons.medical_services_outlined,
+                            iconColor: const Color(0xFF22C55E),
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'Fitur RS Terdekat belum dihubungkan',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: const EdgeInsets.all(16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _WideActionCard(
+                      title: 'Riwayat Laporan',
+                      subtitle: 'Lihat status dan detail laporan Anda',
+                      icon: Icons.receipt_long_outlined,
+                      iconColor: const Color(0xFFA855F7),
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('SOS ditekan'),
+                            content: const Text(
+                              'Halaman riwayat belum dihubungkan',
+                            ),
                             behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.danger,
                             margin: const EdgeInsets.all(16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -56,55 +149,6 @@ class UserDashboardPage extends StatelessWidget {
                           ),
                         );
                       },
-                    ),
-                    const SizedBox(height: 24),
-                    const _SectionTitle(title: 'Layanan Cepat'),
-                    const SizedBox(height: 14),
-                    const Row(
-                      children: [
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Ambulans',
-                            icon: Icons.local_hospital_rounded,
-                            iconColor: Color(0xFF3B82F6),
-                          ),
-                        ),
-                        SizedBox(width: 14),
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Kebakaran',
-                            icon: Icons.local_fire_department_rounded,
-                            iconColor: Color(0xFFFF6B2D),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const Row(
-                      children: [
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Kriminal',
-                            icon: Icons.shield_outlined,
-                            iconColor: Color(0xFFEF4444),
-                          ),
-                        ),
-                        SizedBox(width: 14),
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'RS Terdekat',
-                            icon: Icons.medical_services_outlined,
-                            iconColor: Color(0xFF22C55E),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const _WideActionCard(
-                      title: 'Riwayat Laporan',
-                      subtitle: 'Lihat status dan detail laporan Anda',
-                      icon: Icons.receipt_long_outlined,
-                      iconColor: Color(0xFFA855F7),
                     ),
                     const SizedBox(height: 24),
                     const _SectionTitle(title: 'Status Terakhir'),
@@ -282,38 +326,38 @@ class _UserSOSCard extends StatelessWidget {
               ),
             ],
           ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.sos,
-                color: Colors.white,
-                size: 44,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'SOS',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 10),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Tekan untuk bantuan darurat',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          // child: const Column(
+          //   mainAxisAlignment: MainAxisAlignment.center,
+          //   children: [
+          //     Icon(
+          //       Icons.sos,
+          //       color: Colors.white,
+          //       size: 44,
+          //     ),
+          //     SizedBox(height: 8),
+          //     Text(
+          //       'SOS',
+          //       style: TextStyle(
+          //         color: Colors.white,
+          //         fontSize: 42,
+          //         fontWeight: FontWeight.bold,
+          //       ),
+          //     ),
+          //     SizedBox(height: 10),
+          //     Padding(
+          //       padding: EdgeInsets.symmetric(horizontal: 24),
+          //       child: Text(
+          //         'Tekan untuk bantuan darurat',
+          //         textAlign: TextAlign.center,
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontSize: 15,
+          //           fontWeight: FontWeight.w600,
+          //         ),
+          //       ),
+          //     ),
+          //   ],
+          // ),
         ),
       ),
     );
@@ -324,54 +368,59 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   const _ActionCard({
     required this.title,
     required this.icon,
     required this.iconColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 140,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const Spacer(),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 140,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
+              ),
+              const Spacer(),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -383,63 +432,68 @@ class _WideActionCard extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   const _WideActionCard({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.iconColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(icon, color: iconColor, size: 28),
             ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Riwayat Laporan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Lihat status dan detail laporan Anda',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textSecondary,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
       ),
     );
   }
