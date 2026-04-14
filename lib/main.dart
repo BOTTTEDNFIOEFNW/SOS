@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/network/dio_client.dart';
 import 'core/storage/secure_storage_service.dart';
@@ -19,7 +20,10 @@ import 'features/officer/controller/officer_location_controller.dart';
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   final secureStorageService = SecureStorageService();
   final dioClient = DioClient(secureStorageService: secureStorageService);
 
