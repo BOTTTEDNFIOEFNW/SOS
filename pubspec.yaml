@@ -24,6 +24,7 @@ dependencies:
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   url_launcher: ^6.3.2
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -37,3 +38,4 @@ flutter:
   
   assets:
     - assets/images/logo.png
+    - .env
