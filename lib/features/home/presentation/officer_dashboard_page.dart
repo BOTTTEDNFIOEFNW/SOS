@@ -3,15 +3,145 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../../data/models/report/dispatch_model.dart';
 import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../officer/controller/officer_dispatch_controller.dart';
+import '../../officer/controller/officer_location_controller.dart';
 
-class OfficerDashboardPage extends StatelessWidget {
+class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
+
+  @override
+  State<OfficerDashboardPage> createState() => _OfficerDashboardPageState();
+}
+
+class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OfficerDispatchController>().fetchDispatches();
+    });
+  }
+
+  Future<void> _refresh() async {
+    await context.read<OfficerDispatchController>().fetchDispatches();
+  }
+
+  ({Color bg, Color text}) _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'ASSIGNED':
+        return (bg: const Color(0xFFFFEDD5), text: const Color(0xFFEA580C));
+      case 'ACCEPTED':
+        return (bg: const Color(0xFFE0F2FE), text: const Color(0xFF0284C7));
+      case 'ON_THE_WAY':
+        return (bg: const Color(0xFFDBEAFE), text: const Color(0xFF2563EB));
+      case 'ARRIVED':
+        return (bg: const Color(0xFFDCFCE7), text: const Color(0xFF16A34A));
+      case 'COMPLETED':
+        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
+      default:
+        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
+    }
+  }
+
+  Future<void> _handleAccept(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.acceptDispatch(dispatch.id);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch accepted successfully'
+              : (dispatchController.errorMessage ??
+                  'Failed to accept dispatch'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleStart(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+    final locationController = context.read<OfficerLocationController>();
+
+    final success = await dispatchController.startDispatch(dispatch.id);
+
+    if (success) {
+      await locationController.startLiveTracking(
+        reportId: dispatch.reportId,
+        interval: const Duration(seconds: 10),
+      );
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch started successfully'
+              : (dispatchController.errorMessage ?? 'Failed to start dispatch'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleArrive(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.arriveDispatch(dispatch.id);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Arrival updated successfully'
+              : (dispatchController.errorMessage ?? 'Failed to update arrival'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleComplete(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+    final locationController = context.read<OfficerLocationController>();
+
+    final success = await dispatchController.completeDispatch(
+      dispatchId: dispatch.id,
+      notes: 'Dispatch completed by officer',
+    );
+
+    if (success) {
+      await locationController.stopLiveTracking();
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch completed successfully'
+              : (dispatchController.errorMessage ??
+                  'Failed to complete dispatch'),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
+    final dispatchController = context.watch<OfficerDispatchController>();
+    final locationController = context.watch<OfficerLocationController>();
+
     final officerName = authController.currentUser?.fullName.isNotEmpty == true
         ? authController.currentUser!.fullName
         : 'Officer';
@@ -27,6 +157,7 @@ class OfficerDashboardPage extends StatelessWidget {
                 await showLogoutConfirmation(
                   context,
                   () async {
+                    await locationController.stopLiveTracking();
                     await authController.logout();
                     if (!context.mounted) return;
                     Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -35,81 +166,73 @@ class OfficerDashboardPage extends StatelessWidget {
               },
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    _DutyStatusCard(),
-                    SizedBox(height: 18),
-                    _OfficerSectionTitle(title: 'Tugas Aktif'),
-                    SizedBox(height: 12),
-                    _ActiveDispatchCard(),
-                    SizedBox(height: 18),
-                    _OfficerSectionTitle(title: 'Aksi Cepat'),
-                    SizedBox(height: 12),
-                    Row(
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                child: Builder(
+                  builder: (context) {
+                    if (dispatchController.isLoading &&
+                        dispatchController.dispatches.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+
+                    if (dispatchController.errorMessage != null &&
+                        dispatchController.dispatches.isEmpty) {
+                      return ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          const SizedBox(height: 80),
+                          Center(
+                            child: Text(
+                              dispatchController.errorMessage!,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
                       children: [
-                        Expanded(
-                          child: _CompactActionButton(
-                            title: 'Accept',
-                            bgColor: Color(0xFFFFEDD5),
-                            textColor: Color(0xFFEA580C),
+                        _DutyStatusCard(
+                          isSharingLocation:
+                              locationController.isSharingLocation,
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Dispatch Inbox',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _CompactActionButton(
-                            title: 'Start',
-                            bgColor: Color(0xFFDBEAFE),
-                            textColor: Color(0xFF2563EB),
-                          ),
-                        ),
+                        const SizedBox(height: 12),
+                        if (dispatchController.dispatches.isEmpty)
+                          const _EmptyDispatchCard(),
+                        ...dispatchController.dispatches.map((dispatch) {
+                          final style = _statusColor(dispatch.dispatchStatus);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _DispatchActionCard(
+                              dispatch: dispatch,
+                              statusBg: style.bg,
+                              statusText: style.text,
+                              isActionLoading:
+                                  dispatchController.isActionLoading,
+                              onAccept: () => _handleAccept(dispatch),
+                              onStart: () => _handleStart(dispatch),
+                              onArrive: () => _handleArrive(dispatch),
+                              onComplete: () => _handleComplete(dispatch),
+                            ),
+                          );
+                        }),
                       ],
-                    ),
-                    SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CompactActionButton(
-                            title: 'Arrive',
-                            bgColor: Color(0xFFDCFCE7),
-                            textColor: Color(0xFF16A34A),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _CompactActionButton(
-                            title: 'Complete',
-                            bgColor: Color(0xFFE2E8F0),
-                            textColor: Color(0xFF334155),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 18),
-                    _OfficerSectionTitle(title: 'Dispatch Inbox'),
-                    SizedBox(height: 12),
-                    _DispatchInboxCard(
-                      reportCode: 'EMG-20260413-001',
-                      emergencyType: 'Ambulance',
-                      requesterName: 'Ahmad Rizki',
-                      location: 'Jl. Persatuan Raya',
-                      statusText: 'ASSIGNED',
-                      statusBg: Color(0xFFFFEDD5),
-                      statusColor: Color(0xFFEA580C),
-                    ),
-                    SizedBox(height: 12),
-                    _DispatchInboxCard(
-                      reportCode: 'EMG-20260413-002',
-                      emergencyType: 'Fire',
-                      requesterName: 'Budi Santoso',
-                      location: 'Jl. Sudirman',
-                      statusText: 'ON THE WAY',
-                      statusBg: Color(0xFFDBEAFE),
-                      statusColor: Color(0xFF2563EB),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -186,7 +309,11 @@ class _OfficerHeader extends StatelessWidget {
 }
 
 class _DutyStatusCard extends StatelessWidget {
-  const _DutyStatusCard();
+  final bool isSharingLocation;
+
+  const _DutyStatusCard({
+    required this.isSharingLocation,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -197,32 +324,38 @@ class _DutyStatusCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Row(
+      child: Row(
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: Color(0xFFDCFCE7),
+            backgroundColor: isSharingLocation
+                ? const Color(0xFFDCFCE7)
+                : const Color(0xFFE2E8F0),
             child: Icon(
-              Icons.check_circle_outline,
-              color: AppColors.success,
+              isSharingLocation
+                  ? Icons.location_searching
+                  : Icons.location_disabled_outlined,
+              color: isSharingLocation
+                  ? AppColors.success
+                  : AppColors.textSecondary,
             ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Status Shift',
+                const Text(
+                  'Live Tracking',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'On Duty',
-                  style: TextStyle(
+                  isSharingLocation ? 'Aktif' : 'Tidak Aktif',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -231,135 +364,42 @@ class _DutyStatusCard extends StatelessWidget {
               ],
             ),
           ),
-          _OfficerBadge(
-            text: 'ACTIVE',
-            bgColor: Color(0xFFDCFCE7),
-            textColor: Color(0xFF16A34A),
-          ),
         ],
       ),
     );
   }
 }
 
-class _ActiveDispatchCard extends StatelessWidget {
-  const _ActiveDispatchCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'EMG-20260413-001',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Lokasi: Jl. Persatuan Raya',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            'Requester: Ahmad Rizki',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              _OfficerBadge(
-                text: 'ON THE WAY',
-                bgColor: Color(0xFFDBEAFE),
-                textColor: Color(0xFF2563EB),
-              ),
-              Spacer(),
-              Text(
-                'ETA 8 menit',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactActionButton extends StatelessWidget {
-  final String title;
-  final Color bgColor;
-  final Color textColor;
-
-  const _CompactActionButton({
-    required this.title,
-    required this.bgColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Text(
-          title,
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DispatchInboxCard extends StatelessWidget {
-  final String reportCode;
-  final String emergencyType;
-  final String requesterName;
-  final String location;
-  final String statusText;
+class _DispatchActionCard extends StatelessWidget {
+  final DispatchModel dispatch;
   final Color statusBg;
-  final Color statusColor;
+  final Color statusText;
+  final bool isActionLoading;
+  final VoidCallback onAccept;
+  final VoidCallback onStart;
+  final VoidCallback onArrive;
+  final VoidCallback onComplete;
 
-  const _DispatchInboxCard({
-    required this.reportCode,
-    required this.emergencyType,
-    required this.requesterName,
-    required this.location,
-    required this.statusText,
+  const _DispatchActionCard({
+    required this.dispatch,
     required this.statusBg,
-    required this.statusColor,
+    required this.statusText,
+    required this.isActionLoading,
+    required this.onAccept,
+    required this.onStart,
+    required this.onArrive,
+    required this.onComplete,
   });
 
   @override
   Widget build(BuildContext context) {
+    final reportCode =
+        dispatch.report?['reportCode']?.toString() ?? 'No report code';
+    final emergencyType = dispatch.report?['emergencyType']?.toString() ?? '-';
+    final address = dispatch.report?['addressSnapshot']?.toString() ?? '-';
+
+    final status = dispatch.dispatchStatus.toUpperCase();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -372,97 +412,183 @@ class _DispatchInboxCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              const Icon(
+                Icons.local_shipping_outlined,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   reportCode,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              _OfficerBadge(
-                text: statusText,
-                bgColor: statusBg,
-                textColor: statusColor,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status.replaceAll('_', ' '),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: statusText,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
-            'Jenis: $emergencyType',
+            emergencyType.replaceAll('_', ' '),
             style: const TextStyle(
-              color: AppColors.textSecondary,
               fontSize: 14,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            'Pelapor: $requesterName',
+            address,
             style: const TextStyle(
+              fontSize: 13,
               color: AppColors.textSecondary,
-              fontSize: 14,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Lokasi: $location',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
+          const SizedBox(height: 16),
+          if (status == 'ASSIGNED')
+            _ActionButton(
+              label: 'Accept Dispatch',
+              onPressed: isActionLoading ? null : onAccept,
+              bgColor: AppColors.warning,
+              textColor: Colors.white,
             ),
-          ),
+          if (status == 'ACCEPTED')
+            _ActionButton(
+              label: 'Start Dispatch',
+              onPressed: isActionLoading ? null : onStart,
+              bgColor: AppColors.primary,
+              textColor: Colors.white,
+            ),
+          if (status == 'ON_THE_WAY')
+            _ActionButton(
+              label: 'Mark Arrived',
+              onPressed: isActionLoading ? null : onArrive,
+              bgColor: AppColors.success,
+              textColor: Colors.white,
+            ),
+          if (status == 'ARRIVED' || status == 'HANDLING')
+            _ActionButton(
+              label: 'Complete Dispatch',
+              onPressed: isActionLoading ? null : onComplete,
+              bgColor: AppColors.secondary,
+              textColor: Colors.white,
+            ),
+          if (status == 'COMPLETED')
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'Dispatch Completed',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _OfficerBadge extends StatelessWidget {
-  final String text;
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
   final Color bgColor;
   final Color textColor;
 
-  const _OfficerBadge({
-    required this.text,
+  const _ActionButton({
+    required this.label,
+    required this.onPressed,
     required this.bgColor,
     required this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          color: textColor,
-          fontWeight: FontWeight.bold,
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bgColor,
+          foregroundColor: textColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 }
 
-class _OfficerSectionTitle extends StatelessWidget {
-  final String title;
-
-  const _OfficerSectionTitle({required this.title});
+class _EmptyDispatchCard extends StatelessWidget {
+  const _EmptyDispatchCard();
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 48,
+            color: AppColors.textSecondary,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Belum ada dispatch',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Dispatch yang masuk akan muncul di sini.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

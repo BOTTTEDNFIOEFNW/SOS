@@ -1,5 +1,6 @@
 class DispatchModel {
   final String id;
+  final String reportId;
   final String dispatchStatus;
   final DateTime? assignedAt;
   final DateTime? acceptedAt;
@@ -8,9 +9,11 @@ class DispatchModel {
   final DateTime? completedAt;
   final Map<String, dynamic>? officer;
   final Map<String, dynamic>? ambulance;
+  final Map<String, dynamic>? report;
 
   DispatchModel({
     required this.id,
+    required this.reportId,
     required this.dispatchStatus,
     this.assignedAt,
     this.acceptedAt,
@@ -19,6 +22,7 @@ class DispatchModel {
     this.completedAt,
     this.officer,
     this.ambulance,
+    this.report,
   });
 
   factory DispatchModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,7 @@ class DispatchModel {
 
     return DispatchModel(
       id: json['id']?.toString() ?? '',
+      reportId: json['reportId']?.toString() ?? '',
       dispatchStatus: json['dispatchStatus']?.toString() ?? '',
       assignedAt: parseDate(json['assignedAt']),
       acceptedAt: parseDate(json['acceptedAt']),
@@ -40,6 +45,9 @@ class DispatchModel {
           : null,
       ambulance: json['ambulance'] is Map
           ? Map<String, dynamic>.from(json['ambulance'])
+          : null,
+      report: json['report'] is Map
+          ? Map<String, dynamic>.from(json['report'])
           : null,
     );
   }

@@ -17,6 +17,10 @@ import 'features/auth/controller/auth_controller.dart';
 import 'features/report/controller/emergency_report_controller.dart';
 import 'features/officer/controller/officer_location_controller.dart';
 
+import 'data/repositories/officer_dispatch_repository.dart';
+import 'data/services/officer_dispatch_api_service.dart';
+import 'features/officer/controller/officer_dispatch_controller.dart';
+
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 
@@ -45,11 +49,18 @@ Future<void> main() async {
     officerLocationApiService: officerLocationApiService,
   );
 
+  final officerDispatchApiService =
+      OfficerDispatchApiService(dioClient: dioClient);
+  final officerDispatchRepository = OfficerDispatchRepository(
+    officerDispatchApiService: officerDispatchApiService,
+  );
+
   runApp(
     MyApp(
       authRepository: authRepository,
       emergencyReportRepository: emergencyReportRepository,
       officerLocationRepository: officerLocationRepository,
+      officerDispatchRepository: officerDispatchRepository,
     ),
   );
 }
@@ -58,12 +69,14 @@ class MyApp extends StatelessWidget {
   final AuthRepository authRepository;
   final EmergencyReportRepository emergencyReportRepository;
   final OfficerLocationRepository officerLocationRepository;
+  final OfficerDispatchRepository officerDispatchRepository;
 
   const MyApp({
     super.key,
     required this.authRepository,
     required this.emergencyReportRepository,
     required this.officerLocationRepository,
+    required this.officerDispatchRepository,
   });
 
   @override
@@ -81,6 +94,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => OfficerLocationController(
             officerLocationRepository: officerLocationRepository,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => OfficerDispatchController(
+            officerDispatchRepository: officerDispatchRepository,
           ),
         ),
       ],
