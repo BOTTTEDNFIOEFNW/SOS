@@ -5,6 +5,7 @@ import '../features/auth/presentation/register_screen.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import "../features/report/presentation/emergency_report_form_page.dart";
+import "../features/report/presentation/tracking_page.dart";
 import 'app_routes.dart';
 
 class AppPages {
@@ -28,6 +29,12 @@ class AppPages {
       case AppRoutes.emergencyReportForm:
         return MaterialPageRoute(
             builder: (_) => const EmergencyReportFormPage());
+
+      case AppRoutes.tracking:
+        final reportId = settings.arguments as String?;
+        return MaterialPageRoute(
+          builder: (_) => TrackingPage(reportId: reportId ?? ''),
+        );
 
       default:
         return MaterialPageRoute(
