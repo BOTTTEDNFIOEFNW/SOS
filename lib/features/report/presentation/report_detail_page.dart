@@ -4,32 +4,142 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/report/emergency_report_model.dart';
-import '../../../routes/app_routes.dart';
 import '../controller/emergency_report_controller.dart';
 
-class ReportHistoryPage extends StatefulWidget {
-  const ReportHistoryPage({super.key});
+class ReportDetailPage extends StatefulWidget {
+  final String reportId;
+
+  const ReportDetailPage({
+    super.key,
+    required this.reportId,
+  });
 
   @override
-  State<ReportHistoryPage> createState() => _ReportHistoryPageState();
+  State<ReportDetailPage> createState() => _ReportDetailPageState();
 }
 
-class _ReportHistoryPageState extends State<ReportHistoryPage> {
+class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EmergencyReportController>().fetchMyReports();
+      context.read<EmergencyReportController>().fetchReportDetail(
+            widget.reportId,
+          );
     });
   }
 
-  Future<void> _refresh() async {
-    await context.read<EmergencyReportController>().fetchMyReports();
+  @override
+  void dispose() {
+    context.read<EmergencyReportController>().clearSelectedReport();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) return '-';
+    return DateFormat('dd MMM yyyy • HH:mm:ss').format(value);
+  }
+
+  ({Color bg, Color text}) _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'REPORTED':
+        return (
+          bg: const Color(0xFFF3E8FF),
+          text: const Color(0xFF9333EA),
+        );
+      case 'ASSIGNED':
+        return (
+          bg: const Color(0xFFFFEDD5),
+          text: const Color(0xFFEA580C),
+        );
+      case 'ON_THE_WAY':
+        return (
+          bg: const Color(0xFFDBEAFE),
+          text: const Color(0xFF2563EB),
+        );
+      case 'ARRIVED':
+        return (
+          bg: const Color(0xFFDCFCE7),
+          text: const Color(0xFF16A34A),
+        );
+      case 'HANDLING':
+        return (
+          bg: const Color(0xFFFEF3C7),
+          text: const Color(0xFFD97706),
+        );
+      case 'COMPLETED':
+        return (
+          bg: const Color(0xFFE2E8F0),
+          text: const Color(0xFF334155),
+        );
+      case 'CANCELLED':
+        return (
+          bg: const Color(0xFFFEE2E2),
+          text: const Color(0xFFDC2626),
+        );
+      default:
+        return (
+          bg: const Color(0xFFE2E8F0),
+          text: const Color(0xFF475569),
+        );
+    }
+  }
+
+  List<_TimelineStep> _buildTimeline(EmergencyReportModel report) {
+    final status = report.status.toUpperCase();
+
+    bool active(String target) {
+      const order = [
+        'REPORTED',
+        'ASSIGNED',
+        'ON_THE_WAY',
+        'ARRIVED',
+        'HANDLING',
+        'COMPLETED',
+      ];
+
+      final currentIndex = order.indexOf(status);
+      final targetIndex = order.indexOf(target);
+
+      if (currentIndex == -1 || targetIndex == -1) return false;
+      return currentIndex >= targetIndex;
+    }
+
+    return [
+      _TimelineStep(
+        title: 'Dilaporkan',
+        subtitle: _formatDate(report.requestedAt),
+        isActive: active('REPORTED'),
+      ),
+      _TimelineStep(
+        title: 'Ditugaskan',
+        subtitle: _formatDate(report.assignedAt),
+        isActive: active('ASSIGNED'),
+      ),
+      _TimelineStep(
+        title: 'Dalam Perjalanan',
+        subtitle: status == 'ON_THE_WAY' || active('ON_THE_WAY')
+            ? 'Petugas menuju lokasi'
+            : '-',
+        isActive: active('ON_THE_WAY'),
+      ),
+      _TimelineStep(
+        title: 'Tiba di Lokasi',
+        subtitle: _formatDate(report.arrivedAt),
+        isActive: active('ARRIVED'),
+      ),
+      _TimelineStep(
+        title: 'Selesai',
+        subtitle: _formatDate(report.completedAt),
+        isActive: active('COMPLETED'),
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EmergencyReportController>();
+    final report = controller.selectedReport;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -41,7 +151,7 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         title: const Text(
-          'Riwayat Laporan',
+          'Detail Laporan',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
@@ -49,228 +159,223 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
         ),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: Builder(
-            builder: (context) {
-              if (controller.isLoadingHistory && controller.reports.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (controller.errorMessage != null &&
-                  controller.reports.isEmpty) {
-                return ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    const SizedBox(height: 80),
-                    _ErrorState(
-                      message: controller.errorMessage!,
-                      onRetry: _refresh,
-                    ),
-                  ],
-                );
-              }
-
-              if (controller.reports.isEmpty) {
-                return ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
-                  children: const [
-                    SizedBox(height: 80),
-                    _EmptyState(),
-                  ],
-                );
-              }
-
-              return ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-                itemCount: controller.reports.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (context, index) {
-                  final report = controller.reports[index];
-                  return _ReportHistoryCard(report: report);
-                },
+        child: Builder(
+          builder: (context) {
+            if (controller.isLoadingDetail) {
+              return const Center(
+                child: CircularProgressIndicator(),
               );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
+            }
 
-class _ReportHistoryCard extends StatelessWidget {
-  final EmergencyReportModel report;
+            if (controller.errorMessage != null && report == null) {
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: _DetailErrorState(
+                  message: controller.errorMessage!,
+                  onRetry: () async {
+                    await context
+                        .read<EmergencyReportController>()
+                        .fetchReportDetail(widget.reportId);
+                  },
+                ),
+              );
+            }
 
-  const _ReportHistoryCard({required this.report});
+            if (report == null) {
+              return const Center(
+                child: Text('Data laporan tidak ditemukan'),
+              );
+            }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    return DateFormat('dd MMM yyyy • HH:mm').format(date);
-  }
+            final statusStyle = _statusColor(report.status);
+            final timeline = _buildTimeline(report);
 
-  ({Color bg, Color text}) _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'REPORTED':
-        return (bg: const Color(0xFFF3E8FF), text: const Color(0xFF9333EA));
-      case 'ASSIGNED':
-        return (bg: const Color(0xFFFFEDD5), text: const Color(0xFFEA580C));
-      case 'ON_THE_WAY':
-        return (bg: const Color(0xFFDBEAFE), text: const Color(0xFF2563EB));
-      case 'ARRIVED':
-        return (bg: const Color(0xFFDCFCE7), text: const Color(0xFF16A34A));
-      case 'HANDLING':
-        return (bg: const Color(0xFFFEF3C7), text: const Color(0xFFD97706));
-      case 'COMPLETED':
-        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
-      case 'CANCELLED':
-        return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
-      default:
-        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusStyle = _statusColor(report.status);
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.reportDetail,
-          arguments: report.id,
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF4FF),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.description_outlined,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    report.reportCode,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                  _DetailHeroCard(
+                    reportCode: report.reportCode,
+                    emergencyType: report.emergencyType,
+                    status: report.status,
+                    statusBg: statusStyle.bg,
+                    statusTextColor: statusStyle.text,
+                    requestedAt: _formatDate(report.requestedAt),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    report.emergencyType.replaceAll('_', ' '),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    report.addressSnapshot?.isNotEmpty == true
-                        ? report.addressSnapshot!
-                        : '-',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusStyle.bg,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          report.status.replaceAll('_', ' '),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: statusStyle.text,
+                  const SizedBox(height: 16),
+                  if (report.photoUrl != null &&
+                      report.photoUrl!.trim().isNotEmpty) ...[
+                    _SectionCard(
+                      title: 'Foto Bukti',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.network(
+                              report.photoUrl!,
+                              width: double.infinity,
+                              height: 220,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) {
+                                return Container(
+                                  height: 220,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: const Text(
+                                    'Gagal memuat foto',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          _InfoRow(
+                            label: 'Waktu Foto',
+                            value: _formatDate(report.photoCapturedAt),
+                          ),
+                        ],
                       ),
-                      const Spacer(),
-                      Text(
-                        _formatDate(report.requestedAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _SectionCard(
+                    title: 'Informasi Laporan',
+                    child: Column(
+                      children: [
+                        _InfoRow(
+                          label: 'Jenis Emergency',
+                          value: report.emergencyType.replaceAll('_', ' '),
                         ),
-                      ),
-                    ],
+                        _InfoRow(
+                          label: 'Deskripsi',
+                          value: report.description?.isNotEmpty == true
+                              ? report.description!
+                              : '-',
+                        ),
+                        _InfoRow(
+                          label: 'Alamat',
+                          value: report.addressSnapshot?.isNotEmpty == true
+                              ? report.addressSnapshot!
+                              : '-',
+                        ),
+                        _InfoRow(
+                          label: 'Latitude',
+                          value: report.latitude ?? '-',
+                        ),
+                        _InfoRow(
+                          label: 'Longitude',
+                          value: report.longitude ?? '-',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'Timeline Status',
+                    child: Column(
+                      children: timeline
+                          .map((item) => _TimelineTile(step: item))
+                          .toList(),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _DetailHeroCard extends StatelessWidget {
+  final String reportCode;
+  final String emergencyType;
+  final String status;
+  final Color statusBg;
+  final Color statusTextColor;
+  final String requestedAt;
+
+  const _DetailHeroCard({
+    required this.reportCode,
+    required this.emergencyType,
+    required this.status,
+    required this.statusBg,
+    required this.statusTextColor,
+    required this.requestedAt,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF2563EB),
+            Color(0xFF1D4ED8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: const Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.inbox_outlined, size: 48, color: AppColors.textSecondary),
-          SizedBox(height: 12),
           Text(
-            'Belum ada laporan',
-            style: TextStyle(
-              fontSize: 18,
+            reportCode,
+            style: const TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Colors.white,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            'Riwayat laporan Anda akan muncul di sini.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            emergencyType.replaceAll('_', ' '),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status.replaceAll('_', ' '),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: statusTextColor,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                requestedAt,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -278,11 +383,166 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ErrorState extends StatelessWidget {
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _SectionCard({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textPrimary,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineTile extends StatelessWidget {
+  final _TimelineStep step;
+
+  const _TimelineTile({
+    required this.step,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = step.isActive ? AppColors.primary : AppColors.border;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: step.isActive ? AppColors.primary : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 2),
+              ),
+            ),
+            Container(
+              width: 2,
+              height: 44,
+              color: color,
+            ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 0, bottom: 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step.title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: step.isActive
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  step.subtitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailErrorState extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
 
-  const _ErrorState({
+  const _DetailErrorState({
     required this.message,
     required this.onRetry,
   });
@@ -298,10 +558,14 @@ class _ErrorState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+          const Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppColors.danger,
+          ),
           const SizedBox(height: 12),
           const Text(
-            'Gagal memuat riwayat',
+            'Gagal memuat detail laporan',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -320,10 +584,26 @@ class _ErrorState extends StatelessWidget {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: onRetry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Coba Lagi'),
           ),
         ],
       ),
     );
   }
+}
+
+class _TimelineStep {
+  final String title;
+  final String subtitle;
+  final bool isActive;
+
+  _TimelineStep({
+    required this.title,
+    required this.subtitle,
+    required this.isActive,
+  });
 }

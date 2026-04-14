@@ -136,17 +136,9 @@ class UserDashboardPage extends StatelessWidget {
                       icon: Icons.receipt_long_outlined,
                       iconColor: const Color(0xFFA855F7),
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Halaman riwayat belum dihubungkan',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.all(16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.reportHistory,
                         );
                       },
                     ),
