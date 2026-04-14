@@ -1,32 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'core/storage/secure_storage_service.dart';
 import 'core/network/dio_client.dart';
+import 'core/storage/secure_storage_service.dart';
+
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/emergency_report_repository.dart';
+import 'data/repositories/officer_location_repository.dart';
+
 import 'data/services/auth_api_service.dart';
+import 'data/services/emergency_report_api_service.dart';
+import 'data/services/officer_location_api_service.dart';
+
 import 'features/auth/controller/auth_controller.dart';
+import 'features/report/controller/emergency_report_controller.dart';
+import 'features/officer/controller/officer_location_controller.dart';
+
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 
 void main() {
   final secureStorageService = SecureStorageService();
   final dioClient = DioClient(secureStorageService: secureStorageService);
+
   final authApiService = AuthApiService(dioClient: dioClient);
   final authRepository = AuthRepository(
     authApiService: authApiService,
     secureStorageService: secureStorageService,
   );
 
-  runApp(MyApp(authRepository: authRepository));
+  final emergencyReportApiService =
+      EmergencyReportApiService(dioClient: dioClient);
+  final emergencyReportRepository = EmergencyReportRepository(
+    emergencyReportApiService: emergencyReportApiService,
+  );
+
+  final officerLocationApiService =
+      OfficerLocationApiService(dioClient: dioClient);
+  final officerLocationRepository = OfficerLocationRepository(
+    officerLocationApiService: officerLocationApiService,
+  );
+
+  runApp(
+    MyApp(
+      authRepository: authRepository,
+      emergencyReportRepository: emergencyReportRepository,
+      officerLocationRepository: officerLocationRepository,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   final AuthRepository authRepository;
+  final EmergencyReportRepository emergencyReportRepository;
+  final OfficerLocationRepository officerLocationRepository;
 
   const MyApp({
     super.key,
     required this.authRepository,
+    required this.emergencyReportRepository,
+    required this.officerLocationRepository,
   });
 
   @override
@@ -35,6 +68,16 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthController(authRepository: authRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => EmergencyReportController(
+            emergencyReportRepository: emergencyReportRepository,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => OfficerLocationController(
+            officerLocationRepository: officerLocationRepository,
+          ),
         ),
       ],
       child: MaterialApp(
