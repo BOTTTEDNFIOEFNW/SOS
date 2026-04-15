@@ -103,10 +103,9 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Alerta',
-        initialRoute: AppRoutes.splash,
-        onGenerateRoute: AppPages.onGenerateRoute,
+      debugShowCheckedModeBanner: false,
+      onGenerateRoute: AppPages.onGenerateRoute,
+      initialRoute: AppRoutes.login, 
       ),
     );
   }

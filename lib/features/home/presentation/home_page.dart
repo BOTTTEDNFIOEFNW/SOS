@@ -9,6 +9,8 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
+
+  
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final userType = authController.currentUser?.type.toUpperCase() ?? 'USER';
@@ -21,5 +23,6 @@ class HomePage extends StatelessWidget {
     }
 
     return const UserDashboardPage();
+    
   }
 }
