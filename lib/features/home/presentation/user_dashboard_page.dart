@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sos/services/location_service.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/dialog_utils.dart';
@@ -143,10 +144,10 @@ class UserDashboardPage extends StatelessWidget {
                       },
                     ),
                     const SizedBox(height: 24),
-                    const _SectionTitle(title: 'Status Terakhir'),
-                    const SizedBox(height: 14),
-                    const _LatestReportCard(),
-                    const SizedBox(height: 24),
+                    // const _SectionTitle(title: 'Status Terakhir'),
+                    // const SizedBox(height: 14),
+                    // const _LatestReportCard(),
+                    // const SizedBox(height: 24),
                     const _SectionTitle(title: 'Akun'),
                     const SizedBox(height: 14),
                     const _VerificationCard(),
@@ -229,8 +230,43 @@ class _UserDashboardHeader extends StatelessWidget {
   }
 }
 
-class _UserLocationCard extends StatelessWidget {
+class _UserLocationCard extends StatefulWidget {
   const _UserLocationCard();
+
+  @override
+  State<_UserLocationCard> createState() => _UserLocationCardState();
+}
+
+class _UserLocationCardState extends State<_UserLocationCard> {
+  String locationText = 'Mendeteksi lokasi...';
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    try {
+      final position = await LocationService.getCurrentPosition();
+
+      final address = await LocationService.getAddressFromLatLng(
+        position.latitude,
+        position.longitude,
+      );
+
+      setState(() {
+        locationText = address;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        locationText = 'Lokasi tidak tersedia';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,9 +281,9 @@ class _UserLocationCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 22,
             backgroundColor: Colors.white24,
             child: Icon(
@@ -255,22 +291,22 @@ class _UserLocationCard extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Lokasi Aktif',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Jakarta Selatan',
-                  style: TextStyle(
+                  locationText,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -279,10 +315,22 @@ class _UserLocationCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(
-            Icons.gps_fixed,
-            color: Color(0xFF86EFAC),
-          ),
+          isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : IconButton(
+                  onPressed: _loadLocation,
+                  icon: const Icon(
+                    Icons.refresh,
+                    color: Color(0xFF86EFAC),
+                  ),
+                ),
         ],
       ),
     );
