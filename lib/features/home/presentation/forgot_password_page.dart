@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'verify_otp_page.dart';
-import '../../../routes/app_routes.dart'; // 🔥 tambah ini
+import 'package:provider/provider.dart';
 
+import '../../../routes/app_routes.dart';
+import '../../auth/controller/auth_controller.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -11,20 +12,7 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  bool isLoading = false;
-
-  // 🔥 TAMBAH CONTROLLER
   final TextEditingController phoneController = TextEditingController();
-
-  // 🔥 FUNCTION PINDAH KE OTP
-  void goToOtp() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const VerifyOtpPage(),
-    ),
-  );
-}
 
   @override
   void dispose() {
@@ -32,8 +20,50 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     super.dispose();
   }
 
+  Future<void> goToOtp() async {
+    final phoneNumber = phoneController.text.trim();
+
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nomor handphone wajib diisi')),
+      );
+      return;
+    }
+
+    final authController = context.read<AuthController>();
+
+    final success = await authController.requestForgotPasswordOtp(
+      phoneNumber: phoneNumber,
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            authController.errorMessage ?? 'Gagal mengirim OTP',
+          ),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('OTP berhasil dikirim')),
+    );
+
+    Navigator.pushNamed(
+      context,
+      AppRoutes.verifyOtp,
+      arguments: phoneNumber,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authController = context.watch<AuthController>();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -46,7 +76,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         child: Column(
           children: [
             const SizedBox(height: 30),
-
             const Text(
               "Lupa Password?",
               style: TextStyle(
@@ -54,10 +83,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // 🔥 INPUT NOMOR (PAKAI CONTROLLER)
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
@@ -69,16 +95,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // 🔥 BUTTON (PINDAH KE OTP)
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: goToOtp, // 🔥 ganti ini
-                child: const Text("Kirim OTP"),
+                onPressed:
+                    authController.isForgotPasswordLoading ? null : goToOtp,
+                child: authController.isForgotPasswordLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Kirim OTP"),
               ),
             ),
           ],

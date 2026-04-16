@@ -8,8 +8,9 @@ import "../features/report/presentation/emergency_report_form_page.dart";
 import "../features/report/presentation/tracking_page.dart";
 import "../features/report/presentation/report_history_page.dart";
 import "../features/report/presentation/report_detail_page.dart";
-import '../features/report/presentation/forgot_password_page.dart';
-import '../features/report/presentation/verify_otp_page.dart';
+import '../features/home/presentation/forgot_password_page.dart';
+import '../features/home/presentation/verify_otp_page.dart';
+import '../features/home/presentation/reset_password_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -62,6 +63,10 @@ class AppPages {
           builder: (_) => TrackingPage(reportId: reportId ?? ''),
         );
 
+      case AppRoutes.resetPassword:
+        return MaterialPageRoute(
+          builder: (_) => const ResetPasswordPage(),
+        );
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

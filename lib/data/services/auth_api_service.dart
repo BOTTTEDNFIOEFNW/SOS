@@ -7,6 +7,9 @@ import '../models/auth/login_request_model.dart';
 import '../models/auth/login_response_model.dart';
 import '../models/auth/register_request_model.dart';
 import '../models/auth/user_model.dart';
+import '../models/auth/forgot_password_request_model.dart';
+import '../models/auth/verify_otp_request_model.dart';
+import '../models/auth/reset_forgot_password_request_model.dart';
 
 class AuthApiService {
   final DioClient dioClient;
@@ -93,6 +96,45 @@ class AuthApiService {
         throw error.error as AppException;
       }
 
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<void> requestForgotPasswordOtp(
+    ForgotPasswordRequestModel request,
+  ) async {
+    try {
+      await dioClient.dio.post(
+        ApiConstants.forgotPasswordRequestOtp,
+        data: request.toJson(),
+      );
+    } catch (error) {
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<void> verifyForgotPasswordOtp(
+    VerifyOtpRequestModel request,
+  ) async {
+    try {
+      await dioClient.dio.post(
+        ApiConstants.forgotPasswordVerifyOtp,
+        data: request.toJson(),
+      );
+    } catch (error) {
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<void> resetForgotPassword(
+    ResetForgotPasswordRequestModel request,
+  ) async {
+    try {
+      await dioClient.dio.post(
+        ApiConstants.forgotPasswordReset,
+        data: request.toJson(),
+      );
+    } catch (error) {
       throw DioErrorHandler.handle(error);
     }
   }

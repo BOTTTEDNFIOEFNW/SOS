@@ -4,8 +4,9 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String officerLogin = '/officer-login';
-  static const forgotPassword = '/forgot-password';
-  static const verifyOtp = '/verify-otp';
+  static const String forgotPassword = '/forgot-password';
+  static const String verifyOtp = '/verify-otp';
+  static const String resetPassword = '/reset-password';
 
   // Main
   static const String home = '/home';

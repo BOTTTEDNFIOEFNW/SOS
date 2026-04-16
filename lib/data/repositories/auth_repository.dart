@@ -4,6 +4,9 @@ import '../models/auth/login_response_model.dart';
 import '../models/auth/register_request_model.dart';
 import '../models/auth/user_model.dart';
 import '../services/auth_api_service.dart';
+import '../models/auth/forgot_password_request_model.dart';
+import '../models/auth/verify_otp_request_model.dart';
+import '../models/auth/reset_forgot_password_request_model.dart';
 
 class AuthRepository {
   final AuthApiService authApiService;
@@ -97,5 +100,41 @@ class AuthRepository {
 
   Future<String?> getAccessToken() async {
     return secureStorageService.getAccessToken();
+  }
+
+  Future<void> requestForgotPasswordOtp({
+    required String phoneNumber,
+  }) async {
+    await authApiService.requestForgotPasswordOtp(
+      ForgotPasswordRequestModel(
+        phoneNumber: phoneNumber,
+      ),
+    );
+  }
+
+  Future<void> verifyForgotPasswordOtp({
+    required String phoneNumber,
+    required String otpCode,
+  }) async {
+    await authApiService.verifyForgotPasswordOtp(
+      VerifyOtpRequestModel(
+        phoneNumber: phoneNumber,
+        otpCode: otpCode,
+      ),
+    );
+  }
+
+  Future<void> resetForgotPassword({
+    required String phoneNumber,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    await authApiService.resetForgotPassword(
+      ResetForgotPasswordRequestModel(
+        phoneNumber: phoneNumber,
+        otpCode: otpCode,
+        newPassword: newPassword,
+      ),
+    );
   }
 }
