@@ -53,6 +53,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       const SnackBar(content: Text('OTP berhasil dikirim')),
     );
 
+    debugPrint('SEND PHONE TO VERIFY OTP: $phoneNumber');
+
     Navigator.pushNamed(
       context,
       AppRoutes.verifyOtp,

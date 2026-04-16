@@ -184,7 +184,7 @@ class AuthController extends ChangeNotifier {
 
   Future<bool> verifyForgotPasswordOtp({
     required String phoneNumber,
-    required String otpCode,
+    required String otp,
   }) async {
     try {
       isForgotPasswordLoading = true;
@@ -193,7 +193,7 @@ class AuthController extends ChangeNotifier {
 
       await authRepository.verifyForgotPasswordOtp(
         phoneNumber: phoneNumber,
-        otpCode: otpCode,
+        otp: otp,
       );
 
       return true;
@@ -211,8 +211,9 @@ class AuthController extends ChangeNotifier {
 
   Future<bool> resetForgotPassword({
     required String phoneNumber,
-    required String otpCode,
+    required String otp,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     try {
       isForgotPasswordLoading = true;
@@ -221,8 +222,9 @@ class AuthController extends ChangeNotifier {
 
       await authRepository.resetForgotPassword(
         phoneNumber: phoneNumber,
-        otpCode: otpCode,
+        otp: otp,
         newPassword: newPassword,
+        confirmPassword: confirmPassword,
       );
 
       return true;

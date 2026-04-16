@@ -114,26 +114,28 @@ class AuthRepository {
 
   Future<void> verifyForgotPasswordOtp({
     required String phoneNumber,
-    required String otpCode,
+    required String otp,
   }) async {
     await authApiService.verifyForgotPasswordOtp(
       VerifyOtpRequestModel(
         phoneNumber: phoneNumber,
-        otpCode: otpCode,
+        otp: otp,
       ),
     );
   }
 
   Future<void> resetForgotPassword({
     required String phoneNumber,
-    required String otpCode,
+    required String otp,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     await authApiService.resetForgotPassword(
       ResetForgotPasswordRequestModel(
         phoneNumber: phoneNumber,
-        otpCode: otpCode,
+        otp: otp,
         newPassword: newPassword,
+        confirmPassword: confirmPassword,
       ),
     );
   }

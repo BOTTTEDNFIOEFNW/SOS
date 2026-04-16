@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,8 +17,19 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   final List<TextEditingController> otpControllers =
       List.generate(6, (_) => TextEditingController());
 
+  Timer? _resendTimer;
+  int _remainingSeconds = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendCountdown();
+  }
+
   @override
   void dispose() {
+    _resendTimer?.cancel();
+
     for (var c in otpControllers) {
       c.dispose();
     }
@@ -24,6 +37,42 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   }
 
   String get otpCode => otpControllers.map((e) => e.text).join();
+
+  bool get canResend => _remainingSeconds <= 0;
+
+  void _startResendCountdown() {
+    _resendTimer?.cancel();
+
+    setState(() {
+      _remainingSeconds = 60;
+    });
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+
+      if (_remainingSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _remainingSeconds = 0;
+        });
+        return;
+      }
+
+      setState(() {
+        _remainingSeconds -= 1;
+      });
+    });
+  }
+
+  String _formatCountdown(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = remainingSeconds.toString().padLeft(2, '0');
+
+    return '$mm:$ss';
+  }
 
   Future<void> verifyOtp(String phoneNumber) async {
     if (otpCode.length < 6) {
@@ -37,7 +86,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
     final success = await authController.verifyForgotPasswordOtp(
       phoneNumber: phoneNumber,
-      otpCode: otpCode,
+      otp: otpCode,
     );
 
     if (!mounted) return;
@@ -62,12 +111,14 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       AppRoutes.resetPassword,
       arguments: {
         'phoneNumber': phoneNumber,
-        'otpCode': otpCode,
+        'otp': otpCode,
       },
     );
   }
 
   Future<void> resendOtp(String phoneNumber) async {
+    if (!canResend) return;
+
     final authController = context.read<AuthController>();
 
     final success = await authController.requestForgotPasswordOtp(
@@ -76,19 +127,30 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'OTP berhasil dikirim ulang' : 'Gagal kirim ulang OTP',
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            authController.errorMessage ?? 'Gagal kirim ulang OTP',
+          ),
         ),
-      ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('OTP berhasil dikirim ulang')),
     );
+
+    _startResendCountdown();
   }
 
   @override
   Widget build(BuildContext context) {
     final phone = ModalRoute.of(context)!.settings.arguments as String?;
     final authController = context.watch<AuthController>();
+
+    debugPrint('RECEIVED PHONE IN VERIFY OTP: $phone');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -113,7 +175,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             ),
             const SizedBox(height: 10),
             Text(
-              "Kode dikirim ke $phone",
+              "Kode dikirim ke ${phone ?? '-'}",
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 30),
@@ -137,6 +199,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                       if (value.isNotEmpty && index < 5) {
                         FocusScope.of(context).nextFocus();
                       }
+
+                      if (value.isEmpty && index > 0) {
+                        FocusScope.of(context).previousFocus();
+                      }
                     },
                   ),
                 );
@@ -157,12 +223,22 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               ),
             ),
             const SizedBox(height: 20),
-            TextButton(
-              onPressed: authController.isForgotPasswordLoading || phone == null
-                  ? null
-                  : () => resendOtp(phone),
-              child: const Text("Kirim ulang OTP"),
-            ),
+            if (!canResend)
+              Text(
+                'Kirim ulang dalam ${_formatCountdown(_remainingSeconds)}',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+              )
+            else
+              TextButton(
+                onPressed:
+                    authController.isForgotPasswordLoading || phone == null
+                        ? null
+                        : () => resendOtp(phone),
+                child: const Text("Kirim ulang OTP"),
+              ),
           ],
         ),
       ),

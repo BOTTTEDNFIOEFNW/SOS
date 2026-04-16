@@ -1,16 +1,16 @@
 class VerifyOtpRequestModel {
   final String phoneNumber;
-  final String otpCode;
+  final String otp;
 
   VerifyOtpRequestModel({
     required this.phoneNumber,
-    required this.otpCode,
+    required this.otp,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'phoneNumber': phoneNumber,
-      'otpCode': otpCode,
+      'otp': otp, // 🔥 bukan otpCode
     };
   }
 }

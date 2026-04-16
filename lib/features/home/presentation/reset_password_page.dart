@@ -28,7 +28,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   Future<void> submitReset({
     required String phoneNumber,
-    required String otpCode,
+    required String otp,
   }) async {
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
@@ -36,6 +36,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     if (password.isEmpty || confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password wajib diisi')),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password minimal 6 karakter')),
       );
       return;
     }
@@ -51,8 +58,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     final success = await authController.resetForgotPassword(
       phoneNumber: phoneNumber,
-      otpCode: otpCode,
+      otp: otp,
       newPassword: password,
+      confirmPassword: confirmPassword,
     );
 
     if (!mounted) return;
@@ -72,6 +80,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       const SnackBar(content: Text('Password berhasil direset')),
     );
 
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!mounted) return;
+
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.login,
@@ -82,10 +94,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     final phoneNumber = args?['phoneNumber']?.toString() ?? '';
-    final otpCode = args?['otpCode']?.toString() ?? '';
+    final otp = args?['otp']?.toString() ?? '';
 
     final authController = context.watch<AuthController>();
 
@@ -161,11 +173,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               height: 50,
               child: ElevatedButton(
                 onPressed: authController.isForgotPasswordLoading ||
-                        phoneNumber.isEmpty
+                        phoneNumber.isEmpty ||
+                        otp.isEmpty
                     ? null
                     : () => submitReset(
                           phoneNumber: phoneNumber,
-                          otpCode: otpCode,
+                          otp: otp,
                         ),
                 child: authController.isForgotPasswordLoading
                     ? const CircularProgressIndicator(color: Colors.white)

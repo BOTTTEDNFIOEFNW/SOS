@@ -32,6 +32,7 @@ class AppPages {
 
       case AppRoutes.verifyOtp:
         return MaterialPageRoute(
+          settings: settings,
           builder: (_) => const VerifyOtpPage(),
         );
 
