@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/report/emergency_report_model.dart';
 import '../controller/emergency_report_controller.dart';
+import '../../../core/utils/file_url_helper.dart';
+import "../../../routes/app_routes.dart";
 
 class ReportDetailPage extends StatefulWidget {
   final String reportId;
@@ -187,6 +189,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               );
             }
 
+            final imageUrl = resolveFileUrl(report.photoUrl);
             final statusStyle = _statusColor(report.status);
             final timeline = _buildTimeline(report);
 
@@ -212,31 +215,23 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.network(
-                              report.photoUrl!,
-                              width: double.infinity,
-                              height: 220,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) {
-                                return Container(
-                                  height: 220,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: const Text(
-                                    'Gagal memuat foto',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.network(
+                                imageUrl,
+                                width: double.infinity,
+                                height: 220,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, error, stackTrace) {
+                                  debugPrint('IMAGE ERROR: $error');
+                                  debugPrint('FAILED URL: $imageUrl');
+
+                                  return Container(
+                                    height: 220,
+                                    alignment: Alignment.center,
+                                    child: const Text('Gagal memuat foto'),
+                                  );
+                                },
+                              )),
                           const SizedBox(height: 12),
                           _InfoRow(
                             label: 'Waktu Foto',
@@ -285,6 +280,32 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       children: timeline
                           .map((item) => _TimelineTile(step: item))
                           .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.tracking,
+                          arguments: report.id,
+                        );
+                      },
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text(
+                        'Lihat Live Tracking',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
                     ),
                   ),
                 ],

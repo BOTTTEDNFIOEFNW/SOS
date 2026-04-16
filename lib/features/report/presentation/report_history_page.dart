@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -14,17 +16,89 @@ class ReportHistoryPage extends StatefulWidget {
   State<ReportHistoryPage> createState() => _ReportHistoryPageState();
 }
 
-class _ReportHistoryPageState extends State<ReportHistoryPage> {
+class _ReportHistoryPageState extends State<ReportHistoryPage>
+    with WidgetsBindingObserver {
+  Timer? _pollingTimer;
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EmergencyReportController>().fetchMyReports();
+    WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _safeFetchReports(showLoading: true);
+      _startPolling();
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPolling();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Saat app balik ke foreground, refresh lagi.
+    if (state == AppLifecycleState.resumed) {
+      _safeFetchReports(showLoading: false);
+      _startPolling();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _stopPolling();
+    }
+  }
+
+  void _startPolling() {
+    _stopPolling();
+
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!mounted) return;
+      await _safeFetchReports(showLoading: false);
+    });
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  Future<void> _safeFetchReports({bool showLoading = false}) async {
+    if (!mounted || _isRefreshing) return;
+
+    try {
+      _isRefreshing = true;
+      await context.read<EmergencyReportController>().fetchMyReports(
+            showLoading: showLoading,
+          );
+    } catch (_) {
+      // Error sudah biasanya ditangani controller.
+      // Jadi di sini kita tidak perlu drama tambahan.
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
   Future<void> _refresh() async {
-    await context.read<EmergencyReportController>().fetchMyReports();
+    await _safeFetchReports(showLoading: false);
+  }
+
+  Future<void> _openReportDetail(String reportId) async {
+    _stopPolling();
+
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.reportDetail,
+      arguments: reportId,
+    );
+
+    if (!mounted) return;
+
+    await _safeFetchReports(showLoading: false);
+    _startPolling();
   }
 
   @override
@@ -90,7 +164,10 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
                 separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final report = controller.reports[index];
-                  return _ReportHistoryCard(report: report);
+                  return _ReportHistoryCard(
+                    report: report,
+                    onTap: () => _openReportDetail(report.id),
+                  );
                 },
               );
             },
@@ -103,8 +180,12 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
 
 class _ReportHistoryCard extends StatelessWidget {
   final EmergencyReportModel report;
+  final VoidCallback onTap;
 
-  const _ReportHistoryCard({required this.report});
+  const _ReportHistoryCard({
+    required this.report,
+    required this.onTap,
+  });
 
   String _formatDate(DateTime? date) {
     if (date == null) return '-';
@@ -137,13 +218,7 @@ class _ReportHistoryCard extends StatelessWidget {
     final statusStyle = _statusColor(report.status);
 
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.reportDetail,
-          arguments: report.id,
-        );
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(

@@ -30,11 +30,18 @@ class AppPages {
 
       case AppRoutes.emergencyReportForm:
         return MaterialPageRoute(
-            builder: (_) => const EmergencyReportFormPage());
+          builder: (_) => const EmergencyReportFormPage(),
+        );
 
       case AppRoutes.reportHistory:
         return MaterialPageRoute(
           builder: (_) => const ReportHistoryPage(),
+        );
+
+      case AppRoutes.reportDetail:
+        final reportId = settings.arguments as String?;
+        return MaterialPageRoute(
+          builder: (_) => ReportDetailPage(reportId: reportId ?? ''),
         );
 
       case AppRoutes.tracking:
@@ -45,9 +52,9 @@ class AppPages {
 
       default:
         return MaterialPageRoute(
-          builder: (_) => const Scaffold(
+          builder: (_) => Scaffold(
             body: Center(
-              child: Text('Route not found'),
+              child: Text('Route not found: ${settings.name}'),
             ),
           ),
         );
