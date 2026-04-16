@@ -8,13 +8,25 @@ import 'user_dashboard_page.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
+  bool _isOfficer(String userType, String role) {
+    const officerRoles = {
+      'AMBULANCE_DRIVER',
+      'PARAMEDIC',
+      'FIRE_OFFICER',
+      'POLICE',
+    };
+
+    return userType == 'OFFICER' || officerRoles.contains(role);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
+
     final userType = authController.currentUser?.type.toUpperCase() ?? 'USER';
     final role = authController.currentUser?.role.toUpperCase() ?? '';
 
-    final isOfficer = userType == 'OFFICER' || role.contains('OFFICER');
+    final isOfficer = _isOfficer(userType, role);
 
     if (isOfficer) {
       return const OfficerDashboardPage();

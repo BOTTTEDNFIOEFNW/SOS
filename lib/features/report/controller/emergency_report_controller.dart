@@ -6,9 +6,9 @@ import '../../../core/network/app_exception.dart';
 import '../../../data/models/report/create_emergency_report_request_model.dart';
 import '../../../data/models/report/dispatch_model.dart';
 import '../../../data/models/report/emergency_report_model.dart';
+import '../../../data/models/report/officer_location_model.dart';
 import '../../../data/models/report/pagination_meta_model.dart';
 import '../../../data/repositories/emergency_report_repository.dart';
-import '../../../data/models/report/officer_location_model.dart';
 
 class EmergencyReportController extends ChangeNotifier {
   final EmergencyReportRepository emergencyReportRepository;
@@ -22,6 +22,7 @@ class EmergencyReportController extends ChangeNotifier {
   bool isLoadingDetail = false;
   bool isLoadingDispatch = false;
   bool isLoadingOfficerLocation = false;
+
   String? errorMessage;
 
   List<EmergencyReportModel> reports = [];
@@ -72,11 +73,17 @@ class EmergencyReportController extends ChangeNotifier {
   Future<bool> fetchMyReports({
     int page = 1,
     int limit = 20,
+    bool showLoading = true,
   }) async {
+    if (isLoadingHistory) return false;
+
     try {
-      isLoadingHistory = true;
+      if (showLoading) {
+        isLoadingHistory = true;
+        notifyListeners();
+      }
+
       errorMessage = null;
-      notifyListeners();
 
       final result = await emergencyReportRepository.getMyReports(
         page: page,
@@ -99,11 +106,19 @@ class EmergencyReportController extends ChangeNotifier {
     }
   }
 
-  Future<bool> fetchReportDetail(String reportId) async {
+  Future<bool> fetchReportDetail(
+    String reportId, {
+    bool showLoading = true,
+  }) async {
+    if (isLoadingDetail) return false;
+
     try {
-      isLoadingDetail = true;
+      if (showLoading) {
+        isLoadingDetail = true;
+        notifyListeners();
+      }
+
       errorMessage = null;
-      notifyListeners();
 
       selectedReport =
           await emergencyReportRepository.getReportDetail(reportId);
@@ -121,11 +136,19 @@ class EmergencyReportController extends ChangeNotifier {
     }
   }
 
-  Future<bool> fetchDispatchByReport(String reportId) async {
+  Future<bool> fetchDispatchByReport(
+    String reportId, {
+    bool showLoading = true,
+  }) async {
+    if (isLoadingDispatch) return false;
+
     try {
-      isLoadingDispatch = true;
+      if (showLoading) {
+        isLoadingDispatch = true;
+        notifyListeners();
+      }
+
       errorMessage = null;
-      notifyListeners();
 
       dispatches =
           await emergencyReportRepository.getDispatchByReport(reportId);
@@ -143,11 +166,19 @@ class EmergencyReportController extends ChangeNotifier {
     }
   }
 
-  Future<bool> fetchLatestOfficerLocation(String reportId) async {
+  Future<bool> fetchLatestOfficerLocation(
+    String reportId, {
+    bool showLoading = true,
+  }) async {
+    if (isLoadingOfficerLocation) return false;
+
     try {
-      isLoadingOfficerLocation = true;
+      if (showLoading) {
+        isLoadingOfficerLocation = true;
+        notifyListeners();
+      }
+
       errorMessage = null;
-      notifyListeners();
 
       latestOfficerLocation =
           await emergencyReportRepository.getLatestOfficerLocation(reportId);
@@ -165,10 +196,37 @@ class EmergencyReportController extends ChangeNotifier {
     }
   }
 
+  Future<bool> refreshReportDetailData(
+    String reportId, {
+    bool showLoading = false,
+  }) async {
+    final detailResult = await fetchReportDetail(
+      reportId,
+      showLoading: showLoading,
+    );
+
+    final dispatchResult = await fetchDispatchByReport(
+      reportId,
+      showLoading: showLoading,
+    );
+
+    await fetchLatestOfficerLocation(
+      reportId,
+      showLoading: showLoading,
+    );
+
+    return detailResult && dispatchResult;
+  }
+
   void clearSelectedReport() {
     selectedReport = null;
     dispatches = [];
     latestOfficerLocation = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    errorMessage = null;
     notifyListeners();
   }
 }

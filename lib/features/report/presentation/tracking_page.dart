@@ -7,10 +7,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/models/report/dispatch_model.dart';
+import '../../../core/services/socket_service.dart';
 import '../../../data/models/report/emergency_report_model.dart';
 import '../../../data/models/report/officer_location_model.dart';
+import '../../auth/controller/auth_controller.dart';
 import '../controller/emergency_report_controller.dart';
 
 class TrackingPage extends StatefulWidget {
@@ -27,6 +29,7 @@ class TrackingPage extends StatefulWidget {
 
 class _TrackingPageState extends State<TrackingPage> {
   final MapController _mapController = MapController();
+  final SocketService _socketService = SocketService();
 
   Timer? _pollingTimer;
 
@@ -34,55 +37,151 @@ class _TrackingPageState extends State<TrackingPage> {
   String _etaText = 'Menghitung...';
   String _distanceText = '-';
 
+  bool _hasMovedInitially = false;
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
     _bootstrap();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _refreshTrackingData();
-    });
   }
 
   @override
   void dispose() {
     _pollingTimer?.cancel();
+
+    _socketService.leaveReport(widget.reportId);
+    _socketService.off('connect');
+    _socketService.off('connect_error');
+    _socketService.off('officer:location_updated');
+    _socketService.off('dispatch:status_updated');
+    _socketService.off('report:status_updated');
+    _socketService.disconnect();
+
     context.read<EmergencyReportController>().clearSelectedReport();
     super.dispose();
   }
 
   Future<void> _bootstrap() async {
     await _refreshTrackingData(initialMove: true);
+    _setupSocket();
+    _startPollingFallback();
+  }
+
+  void _setupSocket() {
+    final authController = context.read<AuthController>();
+    final token = authController.accessToken;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('Socket skipped: access token not found');
+      return;
+    }
+
+    _socketService.connect(
+      baseUrl: ApiConstants.socketBaseUrl,
+      token: token,
+    );
+
+    _socketService.on('connect', (_) {
+      debugPrint('Socket connected');
+      _socketService.joinReport(widget.reportId);
+    });
+
+    _socketService.on('connect_error', (error) {
+      debugPrint('Socket connect error: $error');
+    });
+
+    _socketService.on('officer:location_updated', (data) async {
+      debugPrint('Socket officer:location_updated => $data');
+
+      final reportId = data is Map ? data['reportId']?.toString() : null;
+      if (reportId != widget.reportId) return;
+
+      await _refreshTrackingData();
+    });
+
+    _socketService.on('dispatch:status_updated', (data) async {
+      debugPrint('Socket dispatch:status_updated => $data');
+
+      final reportId = data is Map ? data['reportId']?.toString() : null;
+      if (reportId != widget.reportId) return;
+
+      await _refreshTrackingData();
+    });
+
+    _socketService.on('report:status_updated', (data) async {
+      debugPrint('Socket report:status_updated => $data');
+
+      final reportId = data is Map ? data['reportId']?.toString() : null;
+      if (reportId != widget.reportId) return;
+
+      await _refreshTrackingData();
+    });
+  }
+
+  void _startPollingFallback() {
+    _pollingTimer?.cancel();
+
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      await _refreshTrackingData();
+    });
   }
 
   Future<void> _refreshTrackingData({bool initialMove = false}) async {
-    final controller = context.read<EmergencyReportController>();
+    if (_isRefreshing) return;
 
-    await controller.fetchReportDetail(widget.reportId);
-    await controller.fetchDispatchByReport(widget.reportId);
-    await controller.fetchLatestOfficerLocation(widget.reportId);
+    _isRefreshing = true;
 
-    if (!mounted) return;
+    try {
+      final controller = context.read<EmergencyReportController>();
 
-    final report = controller.selectedReport;
-    if (report == null) return;
+      await controller.fetchReportDetail(
+        widget.reportId,
+        showLoading: !_hasMovedInitially && initialMove,
+      );
+      await controller.fetchDispatchByReport(
+        widget.reportId,
+        showLoading: false,
+      );
+      await controller.fetchLatestOfficerLocation(
+        widget.reportId,
+        showLoading: false,
+      );
 
-    final userLocation = _getUserLocation(report);
-    final ambulanceLocation = _getAmbulanceLocation(
-      report,
-      controller.latestOfficerLocation,
-    );
+      if (!mounted) return;
 
-    await _loadRealRoute(
-      from: ambulanceLocation,
-      to: userLocation,
-    );
+      final report = controller.selectedReport;
+      if (report == null) return;
 
-    if (!mounted) return;
+      final userLocation = _getUserLocation(report);
+      final officerLocation = _getOfficerLocation(
+        controller.latestOfficerLocation,
+      );
 
-    if (initialMove) {
-      _mapController.move(userLocation, 14);
-    } else {
-      _fitMarkers(ambulanceLocation, userLocation);
+      if (officerLocation != null) {
+        await _loadRealRoute(
+          from: officerLocation,
+          to: userLocation,
+        );
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _routePoints = [];
+          _etaText = 'Menunggu lokasi petugas';
+          _distanceText = '-';
+        });
+      }
+
+      if (!mounted) return;
+
+      if (!_hasMovedInitially || initialMove) {
+        _mapController.move(userLocation, 14);
+        _hasMovedInitially = true;
+      } else if (officerLocation != null) {
+        _fitMarkers(officerLocation, userLocation);
+      }
+    } finally {
+      _isRefreshing = false;
     }
   }
 
@@ -120,8 +219,8 @@ class _TrackingPageState extends State<TrackingPage> {
         return;
       }
 
-      final firstRoute = routes.first as Map<String, dynamic>;
-      final geometry = firstRoute['geometry'] as Map<String, dynamic>;
+      final firstRoute = Map<String, dynamic>.from(routes.first as Map);
+      final geometry = Map<String, dynamic>.from(firstRoute['geometry'] as Map);
       final coordinates = geometry['coordinates'] as List? ?? [];
 
       final points = coordinates.map((item) {
@@ -141,7 +240,9 @@ class _TrackingPageState extends State<TrackingPage> {
         _etaText = _formatDuration(durationSeconds);
         _distanceText = _formatDistance(distanceMeters);
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Route error: $error');
+
       if (!mounted) return;
       setState(() {
         _routePoints = [from, to];
@@ -174,21 +275,17 @@ class _TrackingPageState extends State<TrackingPage> {
     return LatLng(lat, lng);
   }
 
-  LatLng _getAmbulanceLocation(
-    EmergencyReportModel report,
-    OfficerLocationModel? latestOfficerLocation,
-  ) {
-    if (latestOfficerLocation != null &&
-        latestOfficerLocation.latitude != 0 &&
-        latestOfficerLocation.longitude != 0) {
-      return LatLng(
-        latestOfficerLocation.latitude,
-        latestOfficerLocation.longitude,
-      );
+  LatLng? _getOfficerLocation(OfficerLocationModel? latestOfficerLocation) {
+    if (latestOfficerLocation == null) return null;
+    if (latestOfficerLocation.latitude == 0 ||
+        latestOfficerLocation.longitude == 0) {
+      return null;
     }
 
-    final user = _getUserLocation(report);
-    return LatLng(user.latitude + 0.01, user.longitude - 0.01);
+    return LatLng(
+      latestOfficerLocation.latitude,
+      latestOfficerLocation.longitude,
+    );
   }
 
   ({Color bg, Color text}) _statusColor(String status) {
@@ -254,9 +351,7 @@ class _TrackingPageState extends State<TrackingPage> {
       body: SafeArea(
         child: Builder(
           builder: (context) {
-            if (controller.isLoadingDetail ||
-                controller.isLoadingDispatch ||
-                controller.isLoadingOfficerLocation) {
+            if (controller.isLoadingDetail && report == null) {
               return const Center(
                 child: CircularProgressIndicator(),
               );
@@ -281,10 +376,8 @@ class _TrackingPageState extends State<TrackingPage> {
             }
 
             final userLocation = _getUserLocation(report);
-            final ambulanceLocation = _getAmbulanceLocation(
-              report,
-              controller.latestOfficerLocation,
-            );
+            final officerLocation =
+                _getOfficerLocation(controller.latestOfficerLocation);
 
             final dispatchStyle = _statusColor(
               dispatch?.dispatchStatus ?? report.status,
@@ -339,12 +432,13 @@ class _TrackingPageState extends State<TrackingPage> {
                       ),
                       MarkerLayer(
                         markers: [
-                          Marker(
-                            point: ambulanceLocation,
-                            width: 54,
-                            height: 54,
-                            child: const _AmbulanceMarker(),
-                          ),
+                          if (officerLocation != null)
+                            Marker(
+                              point: officerLocation,
+                              width: 54,
+                              height: 54,
+                              child: const _AmbulanceMarker(),
+                            ),
                           Marker(
                             point: userLocation,
                             width: 64,
@@ -379,8 +473,13 @@ class _TrackingPageState extends State<TrackingPage> {
                       ),
                       _TopCircleButton(
                         icon: Icons.my_location_rounded,
-                        onTap: () =>
-                            _fitMarkers(ambulanceLocation, userLocation),
+                        onTap: () {
+                          if (officerLocation != null) {
+                            _fitMarkers(officerLocation, userLocation);
+                          } else {
+                            _mapController.move(userLocation, 14);
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -484,7 +583,7 @@ class _TrackingPageState extends State<TrackingPage> {
                             title: ambulanceLabel,
                             subtitle: lastLocationTime != null
                                 ? 'Update lokasi terbaru tersedia'
-                                : 'Belum ada update lokasi officer',
+                                : 'Menunggu lokasi petugas',
                             trailing: _StatusPill(
                               text: (dispatch?.dispatchStatus ?? report.status)
                                   .replaceAll('_', ' '),
@@ -572,7 +671,8 @@ class _TrackingPageState extends State<TrackingPage> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.textPrimary,
                                     side: const BorderSide(
-                                        color: AppColors.border),
+                                      color: AppColors.border,
+                                    ),
                                     minimumSize: const Size.fromHeight(54),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(18),
