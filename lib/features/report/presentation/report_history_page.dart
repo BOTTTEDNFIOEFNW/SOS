@@ -189,7 +189,7 @@ class _ReportHistoryCard extends StatelessWidget {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '-';
-    return DateFormat('dd MMM yyyy • HH:mm').format(date);
+    return DateFormat('dd MMM yyyy • HH:mm').format(date.toLocal());
   }
 
   ({Color bg, Color text}) _statusColor(String status) {

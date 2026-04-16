@@ -39,7 +39,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   String _formatDate(DateTime? value) {
     if (value == null) return '-';
-    return DateFormat('dd MMM yyyy • HH:mm:ss').format(value);
+    return DateFormat('dd MMM yyyy • HH:mm').format(value.toLocal());
   }
 
   ({Color bg, Color text}) _statusColor(String status) {
