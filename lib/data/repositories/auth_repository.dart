@@ -94,4 +94,8 @@ class AuthRepository {
   Future<void> clearSession() async {
     await secureStorageService.clearSession();
   }
+
+  Future<String?> getAccessToken() async {
+    return secureStorageService.getAccessToken();
+  }
 }

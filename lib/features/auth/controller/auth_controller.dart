@@ -11,6 +11,7 @@ class AuthController extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   UserModel? currentUser;
+  String? accessToken;
 
   Future<bool> loginUser({
     required String phoneNumber,
@@ -27,6 +28,7 @@ class AuthController extends ChangeNotifier {
       );
 
       currentUser = result.user;
+      accessToken = result.accessToken;
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -55,6 +57,7 @@ class AuthController extends ChangeNotifier {
       );
 
       currentUser = result.user;
+      accessToken = result.accessToken;
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -104,11 +107,16 @@ class AuthController extends ChangeNotifier {
   Future<bool> hydrateUser() async {
     try {
       final user = await authRepository.getMe();
+      final token = await authRepository.getAccessToken();
+
       currentUser = user;
+      accessToken = token;
+
       notifyListeners();
       return true;
     } catch (_) {
       currentUser = null;
+      accessToken = null;
       notifyListeners();
       return false;
     }
@@ -119,6 +127,7 @@ class AuthController extends ChangeNotifier {
 
     if (!hasSession) {
       currentUser = null;
+      accessToken = null;
       notifyListeners();
       return false;
     }
@@ -128,6 +137,7 @@ class AuthController extends ChangeNotifier {
     if (!hydrated) {
       await authRepository.clearSession();
       currentUser = null;
+      accessToken = null;
       notifyListeners();
       return false;
     }
@@ -142,6 +152,7 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     await authRepository.logout();
     currentUser = null;
+    accessToken = null;
     notifyListeners();
   }
 }
