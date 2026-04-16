@@ -30,6 +30,7 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   final MapController _mapController = MapController();
   final SocketService _socketService = SocketService();
+  final Distance _distance = const Distance();
 
   Timer? _pollingTimer;
 
@@ -200,22 +201,24 @@ class _TrackingPageState extends State<TrackingPage> {
     required LatLng to,
   }) async {
     try {
+      debugPrint('ROUTE FROM: ${from.latitude}, ${from.longitude}');
+      debugPrint('ROUTE TO: ${to.latitude}, ${to.longitude}');
+
       final dio = Dio();
 
       final url = 'https://router.project-osrm.org/route/v1/driving/'
           '${from.longitude},${from.latitude};${to.longitude},${to.latitude}'
           '?overview=full&geometries=geojson';
 
+      debugPrint('ROUTE URL: $url');
+
       final response = await dio.get(url);
       final routes = response.data['routes'] as List? ?? [];
 
+      debugPrint('ROUTE COUNT: ${routes.length}');
+
       if (routes.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _routePoints = [from, to];
-          _etaText = 'ETA tidak tersedia';
-          _distanceText = '-';
-        });
+        _applyFallbackEta(from, to);
         return;
       }
 
@@ -240,16 +243,24 @@ class _TrackingPageState extends State<TrackingPage> {
         _etaText = _formatDuration(durationSeconds);
         _distanceText = _formatDistance(distanceMeters);
       });
-    } catch (error) {
-      debugPrint('Route error: $error');
+    } catch (error, stackTrace) {
+      debugPrint('ROUTE ERROR: $error');
+      debugPrint('ROUTE STACK: $stackTrace');
 
-      if (!mounted) return;
-      setState(() {
-        _routePoints = [from, to];
-        _etaText = 'ETA tidak tersedia';
-        _distanceText = '-';
-      });
+      _applyFallbackEta(from, to);
     }
+  }
+
+  void _applyFallbackEta(LatLng from, LatLng to) {
+    final meters = _distance.as(LengthUnit.Meter, from, to);
+    final estimatedMinutes = ((meters / 1000) / 30 * 60).round();
+
+    if (!mounted) return;
+    setState(() {
+      _routePoints = [from, to];
+      _etaText = estimatedMinutes <= 0 ? '1 menit' : '$estimatedMinutes menit';
+      _distanceText = _formatDistance(meters);
+    });
   }
 
   String _formatDuration(double seconds) {
@@ -270,8 +281,14 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 
   LatLng _getUserLocation(EmergencyReportModel report) {
+    debugPrint('REPORT LAT: ${report.latitude}');
+    debugPrint('REPORT LNG: ${report.longitude}');
+
     final lat = double.tryParse(report.latitude ?? '') ?? -6.200000;
     final lng = double.tryParse(report.longitude ?? '') ?? 106.816666;
+
+    debugPrint('PARSED USER LATLNG: $lat, $lng');
+
     return LatLng(lat, lng);
   }
 
@@ -484,208 +501,220 @@ class _TrackingPageState extends State<TrackingPage> {
                     ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28),
+                DraggableScrollableSheet(
+                  initialChildSize: 0.38,
+                  minChildSize: 0.22,
+                  maxChildSize: 0.78,
+                  builder: (context, scrollController) {
+                    return Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
+                        ),
                       ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
-                    child: SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF2563EB),
-                                  Color(0xFF1D4ED8),
-                                ],
+                      child: SafeArea(
+                        top: false,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Estimasi Tiba',
-                                        style: TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _etaText,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          height: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Jarak $_distanceText',
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 13,
-                                        ),
-                                      ),
+                              const SizedBox(height: 18),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF2563EB),
+                                      Color(0xFF1D4ED8),
                                     ],
                                   ),
+                                  borderRadius: BorderRadius.circular(22),
                                 ),
-                                Container(
-                                  width: 58,
-                                  height: 58,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.16),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.access_time_rounded,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _InfoCard(
-                            leading: const _SquareIcon(
-                              icon: Icons.local_hospital_rounded,
-                              bgColor: Color(0xFFE0F2FE),
-                              iconColor: Color(0xFF2563EB),
-                            ),
-                            title: ambulanceLabel,
-                            subtitle: lastLocationTime != null
-                                ? 'Update lokasi terbaru tersedia'
-                                : 'Menunggu lokasi petugas',
-                            trailing: _StatusPill(
-                              text: (dispatch?.dispatchStatus ?? report.status)
-                                  .replaceAll('_', ' '),
-                              bgColor: dispatchStyle.bg,
-                              textColor: dispatchStyle.text,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _InfoCard(
-                            leading: const _SquareIcon(
-                              icon: Icons.person_outline_rounded,
-                              bgColor: Color(0xFFF1F5F9),
-                              iconColor: Color(0xFF64748B),
-                            ),
-                            title: officerName,
-                            subtitle: officerRole.replaceAll('_', ' '),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Lokasi Kejadian',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  report.addressSnapshot?.isNotEmpty == true
-                                      ? report.addressSnapshot!
-                                      : '-',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _openGoogleMaps(userLocation),
-                                  icon: const Icon(Icons.map_outlined),
-                                  label: const Text(
-                                    'Google Maps',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size.fromHeight(54),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(18),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Estimasi Tiba',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            _etaText,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                              height: 1,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Jarak $_distanceText',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                    Container(
+                                      width: 58,
+                                      height: 58,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.16),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.access_time_rounded,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _openWaze(userLocation),
-                                  icon: const Icon(Icons.navigation_outlined),
-                                  label: const Text(
-                                    'Waze',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.textPrimary,
-                                    side: const BorderSide(
-                                      color: AppColors.border,
-                                    ),
-                                    minimumSize: const Size.fromHeight(54),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                  ),
+                              const SizedBox(height: 14),
+                              _InfoCard(
+                                leading: const _SquareIcon(
+                                  icon: Icons.local_hospital_rounded,
+                                  bgColor: Color(0xFFE0F2FE),
+                                  iconColor: Color(0xFF2563EB),
                                 ),
+                                title: ambulanceLabel,
+                                subtitle: lastLocationTime != null
+                                    ? 'Update lokasi terbaru tersedia'
+                                    : 'Menunggu lokasi petugas',
+                                trailing: _StatusPill(
+                                  text: (dispatch?.dispatchStatus ??
+                                          report.status)
+                                      .replaceAll('_', ' '),
+                                  bgColor: dispatchStyle.bg,
+                                  textColor: dispatchStyle.text,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _InfoCard(
+                                leading: const _SquareIcon(
+                                  icon: Icons.person_outline_rounded,
+                                  bgColor: Color(0xFFF1F5F9),
+                                  iconColor: Color(0xFF64748B),
+                                ),
+                                title: officerName,
+                                subtitle: officerRole.replaceAll('_', ' '),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Lokasi Kejadian',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      report.addressSnapshot?.isNotEmpty == true
+                                          ? report.addressSnapshot!
+                                          : '-',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _openGoogleMaps(userLocation),
+                                      icon: const Icon(Icons.map_outlined),
+                                      label: const Text(
+                                        'Google Maps',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size.fromHeight(54),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(18),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _openWaze(userLocation),
+                                      icon:
+                                          const Icon(Icons.navigation_outlined),
+                                      label: const Text(
+                                        'Waze',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.textPrimary,
+                                        side: const BorderSide(
+                                          color: AppColors.border,
+                                        ),
+                                        minimumSize: const Size.fromHeight(54),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(18),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             );
