@@ -20,6 +20,8 @@ class HomePage extends StatelessWidget {
   }
 
   @override
+
+  
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
 
@@ -33,5 +35,6 @@ class HomePage extends StatelessWidget {
     }
 
     return const UserDashboardPage();
+    
   }
 }

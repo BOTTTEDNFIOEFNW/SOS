@@ -8,6 +8,8 @@ import "../features/report/presentation/emergency_report_form_page.dart";
 import "../features/report/presentation/tracking_page.dart";
 import "../features/report/presentation/report_history_page.dart";
 import "../features/report/presentation/report_detail_page.dart";
+import '../features/report/presentation/forgot_password_page.dart';
+import '../features/report/presentation/verify_otp_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -19,8 +21,18 @@ class AppPages {
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
 
+      case AppRoutes.forgotPassword:
+        return MaterialPageRoute(
+          builder: (_) => const ForgotPasswordPage(),
+        );
+
       case AppRoutes.register:
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
+
+      case AppRoutes.verifyOtp:
+        return MaterialPageRoute(
+          builder: (_) => const VerifyOtpPage(),
+        );
 
       case AppRoutes.officerLogin:
         return MaterialPageRoute(builder: (_) => const OfficerLoginScreen());
