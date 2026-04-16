@@ -2,6 +2,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
   static String baseUrl = dotenv.env['BASE_URL'] ?? '';
+  static String fileBaseUrl = dotenv.env['FILE_BASE_URL'] ?? '';
+  static String socketBaseUrl = dotenv.env['SOCKET_URL'] ?? '';
 
   static const String userLogin = '/auth/login';
   static const String userRegister = '/auth/register';
@@ -9,6 +11,6 @@ class ApiConstants {
   static const String me = '/auth/me';
   static const String logout = '/auth/logout';
   static const String emergencyReport = '/emergency-reports';
-  static const String dispatch = '/dispatch';
-  static const String officerLocations = '/officer-location';
+  static const String dispatch = '/dispatches';
+  static const String officerLocations = '/officer-locations';
 }
