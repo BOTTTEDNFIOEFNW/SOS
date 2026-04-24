@@ -14,14 +14,15 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final phoneNumberController = TextEditingController();
+
+  final identifierController = TextEditingController();
   final passwordController = TextEditingController();
 
   bool obscurePassword = true;
 
   @override
   void dispose() {
-    phoneNumberController.dispose();
+    identifierController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -31,28 +32,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authController = context.read<AuthController>();
 
-    final success = await authController.loginUser(
-      phoneNumber: phoneNumberController.text.trim(),
+    final success = await authController.loginMobile(
+      identifier: identifierController.text.trim(),
       password: passwordController.text.trim(),
     );
 
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authController.errorMessage ?? 'Login failed'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.redAccent,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      final userType = authController.currentUser?.type.toUpperCase();
+
+      if (userType == 'OFFICER') {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.officerDashboard,
+        );
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.home,
+        );
+      }
+
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(authController.errorMessage ?? 'Login failed'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.redAccent,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
   }
 
   @override
@@ -62,31 +77,22 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          ///  BACKGROUND IMAGE
           Positioned.fill(
             child: Image.asset(
               'assets/images/2.png',
               fit: BoxFit.cover,
             ),
           ),
-
-          ///  OVERLAY (biar teks kebaca)
           Positioned.fill(
             child: Container(
               color: Colors.black.withOpacity(0.3),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
                 const SizedBox(height: 20),
-
-                ///HEADER
-
                 const Spacer(),
-
-                ///  CARD (FIX DI SINI)
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: ClipRRect(
@@ -102,8 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255)
-                              .withOpacity(0.9), // transparan
+                          color: Colors.white.withOpacity(0.9),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(15),
                           ),
@@ -124,32 +129,48 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Silakan masuk untuk melanjutkan',
+                                  'Gunakan nomor HP atau email untuk melanjutkan',
                                   style: TextStyle(color: Colors.grey),
                                 ),
-
                                 const SizedBox(height: 20),
-
-                                /// PHONE
                                 TextFormField(
-                                  controller: phoneNumberController,
+                                  controller: identifierController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.next,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Nomor HP atau email wajib diisi';
+                                    }
+
+                                    if (value.trim().length < 5) {
+                                      return 'Nomor HP atau email tidak valid';
+                                    }
+
+                                    return null;
+                                  },
                                   decoration: _inputDecoration(
-                                    hint: 'Nomor HP',
-                                    icon: Icons.phone_android,
+                                    hint: 'Nomor HP / Email',
+                                    icon: Icons.person_outline,
                                   ).copyWith(
                                     prefixIcon: const Icon(
-                                      Icons.phone_android,
-                                      color: Color(0xFF166534), // hijau tua
+                                      Icons.person_outline,
+                                      color: Color(0xFF166534),
                                     ),
                                   ),
                                 ),
-
                                 const SizedBox(height: 14),
-
-                                /// PASSWORD
                                 TextFormField(
                                   controller: passwordController,
                                   obscureText: obscurePassword,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _submit(),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Password wajib diisi';
+                                    }
+
+                                    return null;
+                                  },
                                   decoration: _inputDecoration(
                                     hint: 'Password',
                                     icon: Icons.lock_outline,
@@ -163,41 +184,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                         obscurePassword
                                             ? Icons.visibility_off_outlined
                                             : Icons.visibility_outlined,
-                                        color: const Color(
-                                            0xFF166534), // 👁️ icon kanan jadi hijau
+                                        color: const Color(0xFF166534),
                                       ),
                                     ),
                                   ).copyWith(
                                     prefixIcon: const Icon(
                                       Icons.lock,
-                                      color: Color(
-                                          0xFF166534), // 🔒 icon kiri jadi hijau
+                                      color: Color(0xFF166534),
                                     ),
                                   ),
                                 ),
-
                                 const SizedBox(height: 6),
-
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
                                     onPressed: () {
                                       Navigator.pushNamed(
-                                          context, '/forgot-password');
+                                        context,
+                                        '/forgot-password',
+                                      );
                                     },
-                                    child: Text(
+                                    child: const Text(
                                       'Lupa kata sandi?',
                                       style: TextStyle(
-                                        color: const Color.fromARGB(
-                                            255, 2, 79, 11),
+                                        color: Color.fromARGB(255, 2, 79, 11),
                                       ),
                                     ),
                                   ),
                                 ),
-
                                 const SizedBox(height: 10),
-
-                                /// BUTTON
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
@@ -224,54 +239,51 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ],
                                         ),
                                       ),
-                                      child: const Center(
-                                        child: Text(
-                                          'Masuk',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                      child: Center(
+                                        child: authController.isLoading
+                                            ? const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Text(
+                                                'Masuk',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
                                 ),
-
-                                const SizedBox(height: 14),
-
-                                /// DIVIDER
-                                Row(
-                                  children: const [
-                                    Expanded(child: Divider()),
-                                    Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(horizontal: 8),
-                                      child: Text('atau'),
-                                    ),
-                                    Expanded(child: Divider()),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 8),
-
-                                /// REGISTER
+                                const SizedBox(height: 18),
                                 Center(
                                   child: GestureDetector(
                                     onTap: () {
                                       Navigator.pushReplacementNamed(
-                                          context, AppRoutes.register);
+                                        context,
+                                        AppRoutes.register,
+                                      );
                                     },
                                     child: RichText(
-                                      text: TextSpan(
+                                      text: const TextSpan(
                                         text: 'Belum punya akun? ',
-                                        style:
-                                            const TextStyle(color: Colors.grey),
+                                        style: TextStyle(color: Colors.grey),
                                         children: [
                                           TextSpan(
                                             text: 'Daftar',
                                             style: TextStyle(
-                                              color: const Color.fromARGB(
-                                                  255, 13, 83, 15),
+                                              color: Color.fromARGB(
+                                                255,
+                                                13,
+                                                83,
+                                                15,
+                                              ),
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -280,18 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                 ),
-
                                 const SizedBox(height: 10),
-
-                                const Center(
-                                  child: Text(
-                                    'Aman, resmi, dan terpercaya',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -308,7 +309,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// INPUT STYLE (WAJIB ADA)
   InputDecoration _inputDecoration({
     required String hint,
     required IconData icon,
@@ -316,33 +316,26 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-
       filled: true,
-      fillColor: Colors.transparent, // bikin transparan
-
+      fillColor: Colors.transparent,
       hintStyle: TextStyle(
-        color: Colors.grey.withOpacity(0.6), // biar tetap kelihatan
+        color: Colors.grey.withOpacity(0.6),
       ),
-
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
-
       contentPadding: const EdgeInsets.symmetric(vertical: 18),
-
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide(
           color: Colors.grey.withOpacity(0.3),
         ),
       ),
-
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide(
           color: Colors.grey.withOpacity(0.3),
         ),
       ),
-
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide(
@@ -350,18 +343,18 @@ class _LoginScreenState extends State<LoginScreen> {
           width: 1.5,
         ),
       ),
-    );
-  }
-
-  Widget _buildFieldLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+          width: 1.2,
+        ),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+          width: 1.5,
         ),
       ),
     );

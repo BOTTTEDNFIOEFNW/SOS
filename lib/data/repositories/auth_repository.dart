@@ -139,4 +139,22 @@ class AuthRepository {
       ),
     );
   }
+
+  Future<LoginResponseModel> loginMobile({
+    required String identifier,
+    required String password,
+  }) async {
+    final result = await authApiService.loginMobile(
+      LoginRequestModel(
+        identifier: identifier,
+        password: password,
+      ),
+    );
+
+    await secureStorageService.saveAccessToken(result.accessToken);
+    await secureStorageService.saveRefreshToken(result.refreshToken);
+    await secureStorageService.saveUserType(result.user.type);
+
+    return result;
+  }
 }

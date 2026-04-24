@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/home/presentation/home_page.dart';
+import '../features/home/presentation/officer_dashboard_page.dart';
 import '../features/splash/presentation/splash_screen.dart';
-import "../features/report/presentation/emergency_report_form_page.dart";
-import "../features/report/presentation/tracking_page.dart";
-import "../features/report/presentation/report_history_page.dart";
-import "../features/report/presentation/report_detail_page.dart";
+import '../features/report/presentation/emergency_report_form_page.dart';
+import '../features/report/presentation/tracking_page.dart';
+import '../features/report/presentation/report_history_page.dart';
+import '../features/report/presentation/report_detail_page.dart';
 import '../features/home/presentation/forgot_password_page.dart';
 import '../features/home/presentation/verify_otp_page.dart';
 import '../features/home/presentation/reset_password_page.dart';
@@ -21,6 +23,15 @@ class AppPages {
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
 
+      case AppRoutes.home:
+      case AppRoutes.userDashboard:
+        return MaterialPageRoute(builder: (_) => const HomePage());
+
+      case AppRoutes.officerDashboard:
+        return MaterialPageRoute(
+          builder: (_) => const OfficerDashboardPage(),
+        );
+
       case AppRoutes.forgotPassword:
         return MaterialPageRoute(
           builder: (_) => const ForgotPasswordPage(),
@@ -34,9 +45,6 @@ class AppPages {
           settings: settings,
           builder: (_) => const VerifyOtpPage(),
         );
-
-      case AppRoutes.home:
-        return MaterialPageRoute(builder: (_) => const HomePage());
 
       case AppRoutes.emergencyReportForm:
         return MaterialPageRoute(
@@ -64,6 +72,7 @@ class AppPages {
         return MaterialPageRoute(
           builder: (_) => const ResetPasswordPage(),
         );
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

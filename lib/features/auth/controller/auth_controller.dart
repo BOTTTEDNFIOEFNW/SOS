@@ -210,4 +210,34 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> loginMobile({
+    required String identifier,
+    required String password,
+  }) async {
+    try {
+      isLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      final result = await authRepository.loginMobile(
+        identifier: identifier,
+        password: password,
+      );
+
+      currentUser = result.user;
+      accessToken = result.accessToken;
+
+      return true;
+    } on AppException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } catch (_) {
+      errorMessage = 'Login failed. Please try again.';
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 }
