@@ -9,6 +9,8 @@ class AppRoutes {
 
   // Main
   static const String home = '/home';
+  static const String userDashboard = '/user-dashboard';
+  static const String officerDashboard = '/officer-dashboard';
 
   // Reports
   static const String emergencyReportForm = '/emergency-report-form';

@@ -138,4 +138,13 @@ class AuthApiService {
       throw DioErrorHandler.handle(error);
     }
   }
+
+  Future<LoginResponseModel> loginMobile(LoginRequestModel request) async {
+    final response = await dioClient.dio.post(
+      ApiConstants.mobileLogin,
+      data: request.toMobileJson(),
+    );
+
+    return LoginResponseModel.fromJson(response.data);
+  }
 }

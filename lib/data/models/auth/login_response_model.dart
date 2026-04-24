@@ -12,13 +12,17 @@ class LoginResponseModel {
   });
 
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] ?? {};
+    final data = json['data'] ?? json;
 
     return LoginResponseModel(
       accessToken: data['accessToken']?.toString() ?? '',
       refreshToken: data['refreshToken']?.toString() ?? '',
       user: UserModel.fromJson(
-        data['user'] ?? data['officer'] ?? data['admin'] ?? {},
+        data['account'] ??
+            data['user'] ??
+            data['officer'] ??
+            data['admin'] ??
+            {},
       ),
     );
   }
