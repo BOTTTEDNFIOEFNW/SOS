@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/login_screen.dart';
-import '../features/auth/presentation/officer_login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -35,9 +34,6 @@ class AppPages {
           settings: settings,
           builder: (_) => const VerifyOtpPage(),
         );
-
-      case AppRoutes.officerLogin:
-        return MaterialPageRoute(builder: (_) => const OfficerLoginScreen());
 
       case AppRoutes.home:
         return MaterialPageRoute(builder: (_) => const HomePage());

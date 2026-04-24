@@ -254,24 +254,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                 const SizedBox(height: 8),
 
-                                /// OFFICER
-                                Center(
-                                  child: TextButton(
-                                    onPressed: () {
-                                      Navigator.pushNamed(
-                                          context, AppRoutes.officerLogin);
-                                    },
-                                    child: Text(
-                                      'Masuk sebagai Officer',
-                                      style: TextStyle(
-                                        color: const Color.fromARGB(
-                                            255, 5, 109, 29),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
                                 /// REGISTER
                                 Center(
                                   child: GestureDetector(

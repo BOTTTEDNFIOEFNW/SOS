@@ -43,35 +43,6 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginOfficer({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      isLoading = true;
-      errorMessage = null;
-      notifyListeners();
-
-      final result = await authRepository.loginOfficer(
-        email: email,
-        password: password,
-      );
-
-      currentUser = result.user;
-      accessToken = result.accessToken;
-      return true;
-    } on AppException catch (error) {
-      errorMessage = error.message;
-      return false;
-    } catch (_) {
-      errorMessage = 'Officer login failed. Please try again.';
-      return false;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
-
   Future<bool> register({
     required String fullName,
     required String nik,
