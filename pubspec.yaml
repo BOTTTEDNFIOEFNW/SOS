@@ -40,4 +40,5 @@ flutter:
   
   assets:
     - assets/images/logo.png
+    - assets/images/2.png
     - .env
