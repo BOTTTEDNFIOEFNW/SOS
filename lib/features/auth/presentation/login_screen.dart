@@ -172,27 +172,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-
-Align(
-  alignment: Alignment.centerRight,
-  child: TextButton(
-    onPressed: () {
-      Navigator.pushNamed(context, '/forgot-password');
-    },
-    child: const Text.rich(
-  TextSpan(
-    text: 'Lupa Password?',
-    style: TextStyle(
-      fontWeight: FontWeight.w600,
-      decoration: TextDecoration.underline,
-    ),
-  ),
-),
-      ),
-    ),
-  
-
-const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/forgot-password');
+                        },
+                        child: const Text.rich(
+                          TextSpan(
+                            text: 'Lupa Password?',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       height: 52,

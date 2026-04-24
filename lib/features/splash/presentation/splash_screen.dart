@@ -41,21 +41,21 @@ class _SplashScreenState extends State<SplashScreen>
     _bootstrapSession();
   }
 
- Future<void> _bootstrapSession() async {
-  await Future.delayed(const Duration(seconds: 2));
+  Future<void> _bootstrapSession() async {
+    await Future.delayed(const Duration(seconds: 2));
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  final authController = context.read<AuthController>();
-  final isAuthenticated = await authController.checkSessionAndHydrate();
+    final authController = context.read<AuthController>();
+    final isAuthenticated = await authController.checkSessionAndHydrate();
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  Navigator.pushReplacementNamed(
-    context,
-    isAuthenticated ? AppRoutes.home : AppRoutes.login,
-  );
-}
+    Navigator.pushReplacementNamed(
+      context,
+      isAuthenticated ? AppRoutes.home : AppRoutes.login,
+    );
+  }
 
   @override
   void dispose() {
