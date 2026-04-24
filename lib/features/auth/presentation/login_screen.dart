@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../routes/app_routes.dart';
 import '../controller/auth_controller.dart';
+import 'dart:ui';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -49,7 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -60,223 +60,327 @@ class _LoginScreenState extends State<LoginScreen> {
     final authController = context.watch<AuthController>();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: const Text(
-          'Masuk',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+      body: Stack(
+        children: [
+          ///  BACKGROUND IMAGE
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/2.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        centerTitle: false,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+
+          ///  OVERLAY (biar teks kebaca)
+          Positioned.fill(
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 82,
-                      height: 82,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.28),
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.local_hospital_rounded,
-                        color: Colors.white,
-                        size: 42,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Selamat Datang Kembali',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Masuk untuk melanjutkan',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    _buildFieldLabel('No HP'),
-                    TextFormField(
-                      controller: phoneNumberController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        hintText: '08xxxxxxxxxx',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
-                        ),
-                        prefixIcon: Icon(Icons.phone_outlined),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Phone number is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('Password'),
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      decoration: InputDecoration(
-                        hintText: 'Masukkan password',
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
-                        ),
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              obscurePassword = !obscurePassword;
-                            });
-                          },
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Password is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
+              color: Colors.black.withOpacity(0.3),
+            ),
+          ),
 
-Align(
-  alignment: Alignment.centerRight,
-  child: TextButton(
-    onPressed: () {
-      Navigator.pushNamed(context, '/forgot-password');
-    },
-    child: const Text.rich(
-  TextSpan(
-    text: 'Lupa Password?',
-    style: TextStyle(
-      fontWeight: FontWeight.w600,
-      decoration: TextDecoration.underline,
-    ),
-  ),
-),
-      ),
-    ),
-  
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
 
-const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: authController.isLoading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                ///HEADER
+
+                const Spacer(),
+
+                ///  CARD (FIX DI SINI)
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(
+                          maxHeight: 420,
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(255, 255, 255, 255)
+                              .withOpacity(0.9), // transparan
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15),
                           ),
-                          elevation: 8,
                         ),
-                        child: authController.isLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Masuk ke Akun',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              )
-                            : const Text(
-                                'Masuk',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Silakan masuk untuk melanjutkan',
+                                  style: TextStyle(color: Colors.grey),
                                 ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, AppRoutes.officerLogin);
-                      },
-                      child: const Text('Masuk sebagai Officer'),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Belum punya akun? ',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushReplacementNamed(
-                              context,
-                              AppRoutes.register,
-                            );
-                          },
-                          child: const Text(
-                            'Daftar Sekarang',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+
+                                const SizedBox(height: 20),
+
+                                /// PHONE
+                                TextFormField(
+                                  controller: phoneNumberController,
+                                  decoration: _inputDecoration(
+                                    hint: 'Nomor HP',
+                                    icon: Icons.phone_android,
+                                  ).copyWith(
+                                    prefixIcon: const Icon(
+                                      Icons.phone_android,
+                                      color: Color(0xFF166534), // hijau tua
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                /// PASSWORD
+                                TextFormField(
+                                  controller: passwordController,
+                                  obscureText: obscurePassword,
+                                  decoration: _inputDecoration(
+                                    hint: 'Password',
+                                    icon: Icons.lock_outline,
+                                    suffix: IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          obscurePassword = !obscurePassword;
+                                        });
+                                      },
+                                      icon: Icon(
+                                        obscurePassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        color: const Color(
+                                            0xFF166534), // 👁️ icon kanan jadi hijau
+                                      ),
+                                    ),
+                                  ).copyWith(
+                                    prefixIcon: const Icon(
+                                      Icons.lock,
+                                      color: Color(
+                                          0xFF166534), // 🔒 icon kiri jadi hijau
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                          context, '/forgot-password');
+                                    },
+                                    child: Text(
+                                      'Lupa kata sandi?',
+                                      style: TextStyle(
+                                        color: const Color.fromARGB(
+                                            255, 2, 79, 11),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                /// BUTTON
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: authController.isLoading
+                                        ? null
+                                        : _submit,
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: Ink(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color.fromARGB(
+                                                255, 5, 59, 14),
+                                            const Color.fromARGB(235, 7, 82, 37)
+                                                .withOpacity(0.85),
+                                          ],
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'Masuk',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                /// DIVIDER
+                                Row(
+                                  children: const [
+                                    Expanded(child: Divider()),
+                                    Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 8),
+                                      child: Text('atau'),
+                                    ),
+                                    Expanded(child: Divider()),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                /// OFFICER
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                          context, AppRoutes.officerLogin);
+                                    },
+                                    child: Text(
+                                      'Masuk sebagai Officer',
+                                      style: TextStyle(
+                                        color: const Color.fromARGB(
+                                            255, 5, 109, 29),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                /// REGISTER
+                                Center(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushReplacementNamed(
+                                          context, AppRoutes.register);
+                                    },
+                                    child: RichText(
+                                      text: TextSpan(
+                                        text: 'Belum punya akun? ',
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                        children: [
+                                          TextSpan(
+                                            text: 'Daftar',
+                                            style: TextStyle(
+                                              color: const Color.fromARGB(
+                                                  255, 13, 83, 15),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                const Center(
+                                  child: Text(
+                                    'Aman, resmi, dan terpercaya',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// INPUT STYLE (WAJIB ADA)
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+
+      
+      filled: true,
+      fillColor: Colors.transparent, // bikin transparan
+
+      hintStyle: TextStyle(
+        color: Colors.grey.withOpacity(0.6), // biar tetap kelihatan
+      ),
+
+      prefixIcon: Icon(icon),
+      suffixIcon: suffix,
+
+      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: Colors.grey.withOpacity(0.3),
+        ),
+      ),
+
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: Colors.grey.withOpacity(0.3),
+        ),
+      ),
+
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: AppColors.primary,
+          width: 1.5,
         ),
       ),
     );
   }
 
   Widget _buildFieldLabel(String text) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
         ),
       ),
     );
