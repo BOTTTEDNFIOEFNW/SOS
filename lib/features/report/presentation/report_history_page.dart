@@ -9,6 +9,10 @@ import '../../../data/models/report/emergency_report_model.dart';
 import '../../../routes/app_routes.dart';
 import '../controller/emergency_report_controller.dart';
 
+import '../../../core/services/socket_service.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../auth/controller/auth_controller.dart';
+
 class ReportHistoryPage extends StatefulWidget {
   const ReportHistoryPage({super.key});
 
@@ -20,6 +24,7 @@ class _ReportHistoryPageState extends State<ReportHistoryPage>
     with WidgetsBindingObserver {
   Timer? _pollingTimer;
   bool _isRefreshing = false;
+  final SocketService _socketService = SocketService();
 
   @override
   void initState() {
@@ -29,6 +34,7 @@ class _ReportHistoryPageState extends State<ReportHistoryPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _safeFetchReports(showLoading: true);
       _startPolling();
+      _setupSocket();
     });
   }
 
@@ -36,6 +42,12 @@ class _ReportHistoryPageState extends State<ReportHistoryPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stopPolling();
+
+    _socketService.off('connect');
+    _socketService.off('report:updated');
+    _socketService.off('dispatch:updated');
+    _socketService.disconnect();
+
     super.dispose();
   }
 
@@ -57,6 +69,44 @@ class _ReportHistoryPageState extends State<ReportHistoryPage>
 
     _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       if (!mounted) return;
+      await _safeFetchReports(showLoading: false);
+    });
+  }
+
+  void _setupSocket() {
+    final authController = context.read<AuthController>();
+    final token = authController.accessToken;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('History socket skipped: no token');
+      return;
+    }
+
+    _socketService.connect(
+      baseUrl: ApiConstants.socketBaseUrl,
+      token: token,
+    );
+
+    _socketService.on('connect', (_) {
+      debugPrint('History socket connected');
+    });
+
+    _socketService.on('report:updated', (data) async {
+      await _safeFetchReports(showLoading: false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status laporan diperbarui'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    });
+
+    _socketService.on('dispatch:updated', (data) async {
+      debugPrint('History dispatch:updated => $data');
+
       await _safeFetchReports(showLoading: false);
     });
   }
