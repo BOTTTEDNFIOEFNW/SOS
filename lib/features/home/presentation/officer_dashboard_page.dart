@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/dialog_utils.dart';
 import '../../../data/models/report/dispatch_model.dart';
@@ -19,17 +20,281 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   static const Color yellow = Color(0xFFF4BB00);
   static const Color softGreen = Color(0xFF2D6858);
 
+  List<DispatchModel> _visibleDispatches(List<DispatchModel> items) {
+    final filtered = items.where((item) {
+      final status = item.dispatchStatus.toUpperCase();
+
+      return ![
+        'COMPLETED',
+        'CANCELLED',
+      ].contains(status);
+    }).toList();
+
+    filtered.sort((a, b) {
+      int priority(String status) {
+        switch (status.toUpperCase()) {
+          case 'ON_THE_WAY':
+            return 1;
+          case 'ARRIVED':
+            return 2;
+          case 'HANDLING':
+            return 3;
+          case 'ACCEPTED':
+            return 4;
+          case 'ASSIGNED':
+            return 5;
+          default:
+            return 50;
+        }
+      }
+
+      DateTime dateOf(DispatchModel item) {
+        return item.startedAt ??
+            item.acceptedAt ??
+            item.assignedAt ??
+            item.arrivedAt ??
+            item.completedAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+      }
+
+      final priorityCompare =
+          priority(a.dispatchStatus).compareTo(priority(b.dispatchStatus));
+
+      if (priorityCompare != 0) return priorityCompare;
+
+      return dateOf(b).compareTo(dateOf(a));
+    });
+
+    return filtered;
+  }
+
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<OfficerDispatchController>().fetchDispatches();
     });
   }
 
+  void _openReportDetail(DispatchModel dispatch) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.reportDetail,
+      arguments: dispatch.reportId,
+    );
+  }
+
+  Future<void> _openNavigation(DispatchModel dispatch) async {
+    final lat = dispatch.report?['latitude']?.toString();
+    final lng = dispatch.report?['longitude']?.toString();
+
+    if (lat == null || lng == null || lat.isEmpty || lng.isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Koordinat laporan tidak tersedia'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+
+    final canOpen = await canLaunchUrl(uri);
+
+    if (!mounted) return;
+
+    if (canOpen) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tidak bisa membuka Google Maps'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _showCompleteNotesDialog(DispatchModel dispatch) async {
+    final notesController = TextEditingController();
+
+    final notes = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF063B25).withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.task_alt_rounded,
+                  color: Color(0xFFF4BB00),
+                  size: 42,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Selesaikan Dispatch',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Isi catatan penyelesaian tugas.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: notesController,
+                  maxLines: 4,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: Pasien sudah dibantu dan aman.',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFF4BB00),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext, null),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final value = notesController.text.trim();
+
+                          if (value.isEmpty) {
+                            Navigator.pop(
+                              dialogContext,
+                              'Dispatch completed by officer',
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(dialogContext, value);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF4BB00),
+                          foregroundColor: const Color(0xFF173B2D),
+                        ),
+                        child: const Text(
+                          'Selesai',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    notesController.dispose();
+
+    if (!mounted) return;
+    if (notes == null) return;
+
+    await _handleCompleteWithNotes(dispatch, notes);
+  }
+
+  Future<void> _handleCompleteWithNotes(
+    DispatchModel dispatch,
+    String notes,
+  ) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+    final locationController = context.read<OfficerLocationController>();
+
+    final success = await dispatchController.completeDispatch(
+      dispatchId: dispatch.id,
+      notes: notes,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      await locationController.stopLiveTracking();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dispatch selesai'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          dispatchController.errorMessage ?? 'Gagal menyelesaikan dispatch',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _refresh() async {
-    await context.read<OfficerDispatchController>().fetchDispatches();
+    if (!mounted) return;
+
+    final controller = context.read<OfficerDispatchController>();
+
+    await controller.fetchDispatches();
+
+    if (!mounted) return;
   }
 
   ({Color bg, Color text}) _statusColor(String status) {
@@ -110,34 +375,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
           success
               ? 'Status tiba di lokasi berhasil diperbarui'
               : (dispatchController.errorMessage ?? 'Gagal update arrival'),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _handleComplete(DispatchModel dispatch) async {
-    final dispatchController = context.read<OfficerDispatchController>();
-    final locationController = context.read<OfficerLocationController>();
-
-    final success = await dispatchController.completeDispatch(
-      dispatchId: dispatch.id,
-      notes: 'Dispatch completed by officer',
-    );
-
-    if (success) {
-      await locationController.stopLiveTracking();
-    }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Dispatch selesai'
-              : (dispatchController.errorMessage ??
-                  'Gagal menyelesaikan dispatch'),
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -228,10 +465,12 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                       message: dispatchController.errorMessage!,
                       onRetry: _refresh,
                     )
-                  else if (dispatchController.dispatches.isEmpty)
+                  else if (_visibleDispatches(dispatchController.dispatches)
+                      .isEmpty)
                     const _EmptyDispatchCard()
                   else
-                    ...dispatchController.dispatches.map((dispatch) {
+                    ..._visibleDispatches(dispatchController.dispatches)
+                        .map((dispatch) {
                       final style = _statusColor(dispatch.dispatchStatus);
 
                       return Padding(
@@ -241,10 +480,12 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           statusBg: style.bg,
                           statusText: style.text,
                           isActionLoading: dispatchController.isActionLoading,
+                          onDetail: () => _openReportDetail(dispatch),
+                          onNavigate: () => _openNavigation(dispatch),
                           onAccept: () => _handleAccept(dispatch),
                           onStart: () => _handleStart(dispatch),
                           onArrive: () => _handleArrive(dispatch),
-                          onComplete: () => _handleComplete(dispatch),
+                          onComplete: () => _showCompleteNotesDialog(dispatch),
                         ),
                       );
                     }),
@@ -536,6 +777,8 @@ class _DispatchActionCard extends StatelessWidget {
   final VoidCallback onStart;
   final VoidCallback onArrive;
   final VoidCallback onComplete;
+  final VoidCallback onDetail;
+  final VoidCallback onNavigate;
 
   const _DispatchActionCard({
     required this.dispatch,
@@ -544,6 +787,8 @@ class _DispatchActionCard extends StatelessWidget {
     required this.isActionLoading,
     required this.onAccept,
     required this.onStart,
+    required this.onDetail,
+    required this.onNavigate,
     required this.onArrive,
     required this.onComplete,
   });
@@ -669,7 +914,27 @@ class _DispatchActionCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniActionButton(
+                  label: 'Detail',
+                  icon: Icons.description_outlined,
+                  onTap: onDetail,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniActionButton(
+                  label: 'Navigate',
+                  icon: Icons.navigation_outlined,
+                  onTap: onNavigate,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           if (status == 'ASSIGNED')
             _ActionButton(
               label: 'Terima Dispatch',
@@ -762,6 +1027,44 @@ class _ActionButton extends StatelessWidget {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MiniActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 46,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF2D6858),
+          side: BorderSide(
+            color: const Color(0xFF2D6858).withValues(alpha: 0.28),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
       ),
