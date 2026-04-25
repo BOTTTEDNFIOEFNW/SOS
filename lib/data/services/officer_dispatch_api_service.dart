@@ -89,4 +89,24 @@ class OfficerDispatchApiService {
       throw DioErrorHandler.handle(error);
     }
   }
+
+  Future<void> rejectDispatch({
+    required String dispatchId,
+    String? notes,
+  }) async {
+    try {
+      await dioClient.dio.patch(
+        '${ApiConstants.dispatch}/$dispatchId/reject',
+        data: {
+          'notes': notes ?? 'Dispatch rejected by officer',
+        },
+      );
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
 }

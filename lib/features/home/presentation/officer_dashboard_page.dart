@@ -125,6 +125,145 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     );
   }
 
+  Future<void> _showRejectNotesDialog(DispatchModel dispatch) async {
+    final notesController = TextEditingController();
+
+    final notes = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF063B25).withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFFF87171),
+                  size: 42,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Reject Dispatch',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Berikan alasan kenapa dispatch ini ditolak.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: notesController,
+                  maxLines: 4,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: Sedang tidak bisa menuju lokasi.',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFF87171),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext, null),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final value = notesController.text.trim();
+
+                          Navigator.pop(
+                            dialogContext,
+                            value.isEmpty
+                                ? 'Dispatch rejected by officer'
+                                : value,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF87171),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text(
+                          'Reject',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    notesController.dispose();
+
+    if (!mounted) return;
+    if (notes == null) return;
+
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.rejectDispatch(
+      dispatchId: dispatch.id,
+      notes: notes,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch ditolak'
+              : (dispatchController.errorMessage ?? 'Gagal reject dispatch'),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _showCompleteNotesDialog(DispatchModel dispatch) async {
     final notesController = TextEditingController();
 
@@ -483,6 +622,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           onDetail: () => _openReportDetail(dispatch),
                           onNavigate: () => _openNavigation(dispatch),
                           onAccept: () => _handleAccept(dispatch),
+                          onReject: () => _showRejectNotesDialog(dispatch),
                           onStart: () => _handleStart(dispatch),
                           onArrive: () => _handleArrive(dispatch),
                           onComplete: () => _showCompleteNotesDialog(dispatch),
@@ -779,19 +919,20 @@ class _DispatchActionCard extends StatelessWidget {
   final VoidCallback onComplete;
   final VoidCallback onDetail;
   final VoidCallback onNavigate;
+  final VoidCallback onReject;
 
-  const _DispatchActionCard({
-    required this.dispatch,
-    required this.statusBg,
-    required this.statusText,
-    required this.isActionLoading,
-    required this.onAccept,
-    required this.onStart,
-    required this.onDetail,
-    required this.onNavigate,
-    required this.onArrive,
-    required this.onComplete,
-  });
+  const _DispatchActionCard(
+      {required this.dispatch,
+      required this.statusBg,
+      required this.statusText,
+      required this.isActionLoading,
+      required this.onAccept,
+      required this.onStart,
+      required this.onDetail,
+      required this.onNavigate,
+      required this.onArrive,
+      required this.onComplete,
+      required this.onReject});
 
   String _formatText(String value) {
     return value.replaceAll('_', ' ');
@@ -936,12 +1077,28 @@ class _DispatchActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (status == 'ASSIGNED')
-            _ActionButton(
-              label: 'Terima Dispatch',
-              icon: Icons.check_circle_outline_rounded,
-              onPressed: isActionLoading ? null : onAccept,
-              bgColor: const Color(0xFFF4BB00),
-              textColor: const Color(0xFF173B2D),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionButton(
+                    label: 'Reject',
+                    icon: Icons.close_rounded,
+                    onPressed: isActionLoading ? null : onReject,
+                    bgColor: const Color(0xFFF87171),
+                    textColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ActionButton(
+                    label: 'Terima',
+                    icon: Icons.check_circle_outline_rounded,
+                    onPressed: isActionLoading ? null : onAccept,
+                    bgColor: const Color(0xFFF4BB00),
+                    textColor: const Color(0xFF173B2D),
+                  ),
+                ),
+              ],
             ),
           if (status == 'ACCEPTED')
             _ActionButton(

@@ -33,4 +33,14 @@ class OfficerDispatchRepository {
       notes: notes,
     );
   }
+
+  Future<void> rejectDispatch({
+    required String dispatchId,
+    String? notes,
+  }) {
+    return officerDispatchApiService.rejectDispatch(
+      dispatchId: dispatchId,
+      notes: notes,
+    );
+  }
 }

@@ -125,4 +125,32 @@ class OfficerDispatchController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> rejectDispatch({
+    required String dispatchId,
+    String? notes,
+  }) async {
+    try {
+      isActionLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      await officerDispatchRepository.rejectDispatch(
+        dispatchId: dispatchId,
+        notes: notes,
+      );
+
+      await fetchDispatches();
+      return true;
+    } on AppException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } catch (_) {
+      errorMessage = 'Failed to reject dispatch.';
+      return false;
+    } finally {
+      isActionLoading = false;
+      notifyListeners();
+    }
+  }
 }
