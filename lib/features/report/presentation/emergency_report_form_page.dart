@@ -13,10 +13,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
 class EmergencyReportFormPage extends StatefulWidget {
+  final String? serviceId;
   final String? initialEmergencyType;
 
   const EmergencyReportFormPage({
     super.key,
+    this.serviceId,
     this.initialEmergencyType,
   });
 
@@ -183,6 +185,7 @@ class _EmergencyReportFormPageState extends State<EmergencyReportFormPage> {
     final controller = context.read<EmergencyReportController>();
 
     final success = await controller.submitReport(
+      serviceId: widget.serviceId,
       emergencyType: selectedEmergencyType,
       description: descriptionController.text.trim(),
       latitude: latitudeController.text.trim(),
@@ -421,30 +424,30 @@ class _EmergencyReportFormPageState extends State<EmergencyReportFormPage> {
                   color: selectedType['color'] as Color,
                 ),
                 const SizedBox(height: 20),
-                _SectionCard(
-                  title: 'Jenis Kejadian',
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: emergencyTypes.map((item) {
-                      final isSelected = selectedEmergencyType == item['value'];
+                // _SectionCard(
+                //   title: 'Jenis Kejadian',
+                //   child: Wrap(
+                //     spacing: 10,
+                //     runSpacing: 10,
+                //     children: emergencyTypes.map((item) {
+                //       final isSelected = selectedEmergencyType == item['value'];
 
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedEmergencyType = item['value'] as String;
-                          });
-                        },
-                        child: _EmergencyTypeChoice(
-                          label: item['label'] as String,
-                          icon: item['icon'] as IconData,
-                          color: item['color'] as Color,
-                          isSelected: isSelected,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
+                //       return GestureDetector(
+                //         onTap: () {
+                //           setState(() {
+                //             selectedEmergencyType = item['value'] as String;
+                //           });
+                //         },
+                //         child: _EmergencyTypeChoice(
+                //           label: item['label'] as String,
+                //           icon: item['icon'] as IconData,
+                //           color: item['color'] as Color,
+                //           isSelected: isSelected,
+                //         ),
+                //       );
+                //     }).toList(),
+                //   ),
+                // ),
                 const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Detail Laporan',
