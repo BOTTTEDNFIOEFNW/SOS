@@ -32,6 +32,7 @@ class _TrackingPageState extends State<TrackingPage> {
   final SocketService _socketService = SocketService();
   final Distance _distance = const Distance();
 
+  LatLng? _currentOfficerPosition;
   Timer? _pollingTimer;
 
   List<LatLng> _routePoints = [];
@@ -92,13 +93,40 @@ class _TrackingPageState extends State<TrackingPage> {
       debugPrint('Socket connect error: $error');
     });
 
-    _socketService.on('officer:location_updated', (data) async {
-      debugPrint('Socket officer:location_updated => $data');
+    _socketService.on('officer:location_updated', (data) {
+      debugPrint('REALTIME MOVE => $data');
 
-      final reportId = data is Map ? data['reportId']?.toString() : null;
+      if (data is! Map) return;
+
+      final reportId = data['reportId']?.toString();
       if (reportId != widget.reportId) return;
 
-      await _refreshTrackingData();
+      final lat = double.tryParse(data['latitude']?.toString() ?? '');
+      final lng = double.tryParse(data['longitude']?.toString() ?? '');
+
+      if (lat == null || lng == null) return;
+
+      final controller = context.read<EmergencyReportController>();
+      final report = controller.selectedReport;
+
+      if (report == null) return;
+
+      final newPosition = LatLng(lat, lng);
+      final userLocation = _getUserLocation(report);
+
+      setState(() {
+        _currentOfficerPosition = newPosition;
+      });
+
+      _loadRealRoute(
+        from: newPosition,
+        to: userLocation,
+      );
+
+      _mapController.move(
+        newPosition,
+        _mapController.camera.zoom,
+      );
     });
 
     _socketService.on('dispatch:updated', (data) async {
@@ -393,7 +421,7 @@ class _TrackingPageState extends State<TrackingPage> {
             }
 
             final userLocation = _getUserLocation(report);
-            final officerLocation =
+            final officerLocation = _currentOfficerPosition ??
                 _getOfficerLocation(controller.latestOfficerLocation);
 
             final dispatchStyle = _statusColor(
