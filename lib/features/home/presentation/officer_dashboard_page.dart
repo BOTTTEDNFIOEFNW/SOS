@@ -8,6 +8,8 @@ import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../officer/controller/officer_dispatch_controller.dart';
 import '../../officer/controller/officer_location_controller.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/services/socket_service.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
@@ -19,6 +21,20 @@ class OfficerDashboardPage extends StatefulWidget {
 class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   static const Color yellow = Color(0xFFF4BB00);
   static const Color softGreen = Color(0xFF2D6858);
+  final SocketService _socketService = SocketService();
+  bool _isRealtimeRefreshing = false;
+
+  @override
+  void dispose() {
+    _socketService.off('connect');
+    _socketService.off('connect_error');
+    _socketService.off('dispatch:updated');
+    _socketService.off('dispatch:created');
+    _socketService.off('dispatch:assigned');
+    _socketService.disconnect();
+
+    super.dispose();
+  }
 
   List<DispatchModel> _visibleDispatches(List<DispatchModel> items) {
     final filtered = items.where((item) {
@@ -72,10 +88,89 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      context.read<OfficerDispatchController>().fetchDispatches();
+
+      await context.read<OfficerDispatchController>().fetchDispatches();
+
+      if (!mounted) return;
+
+      _setupSocket();
     });
+  }
+
+  void _setupSocket() {
+    final authController = context.read<AuthController>();
+    final token = authController.accessToken;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('Officer socket skipped: token not found');
+      return;
+    }
+
+    _socketService.connect(
+      baseUrl: ApiConstants.socketBaseUrl,
+      token: token,
+    );
+
+    _socketService.on('connect', (_) {
+      debugPrint('Officer dashboard socket connected');
+    });
+
+    _socketService.on('connect_error', (error) {
+      debugPrint('Officer dashboard socket error: $error');
+    });
+
+    _socketService.on('dispatch:updated', (data) async {
+      debugPrint('Officer dispatch:updated => $data');
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch diperbarui',
+      );
+    });
+
+    _socketService.on('dispatch:created', (data) async {
+      debugPrint('Officer dispatch:created => $data');
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch baru masuk',
+      );
+    });
+
+    _socketService.on('dispatch:assigned', (data) async {
+      debugPrint('Officer dispatch:assigned => $data');
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch baru ditugaskan',
+      );
+    });
+  }
+
+  Future<void> _refreshDispatchRealtime({
+    bool showToast = false,
+    String message = 'Dispatch diperbarui',
+  }) async {
+    if (_isRealtimeRefreshing) return;
+
+    _isRealtimeRefreshing = true;
+
+    try {
+      await context.read<OfficerDispatchController>().fetchDispatches();
+
+      if (!mounted) return;
+
+      if (showToast) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      _isRealtimeRefreshing = false;
+    }
   }
 
   void _openReportDetail(DispatchModel dispatch) {
