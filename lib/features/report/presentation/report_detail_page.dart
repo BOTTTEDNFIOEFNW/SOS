@@ -35,6 +35,12 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     });
   }
 
+  String _cleanText(String? value) {
+    if (value == null || value.trim().isEmpty) return '-';
+
+    return value.replaceAll('_', ' ');
+  }
+
   bool _canCancelReport(String status) {
     return ['REPORTED', 'ASSIGNED'].contains(status.toUpperCase());
   }
@@ -175,6 +181,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       const order = [
         'REPORTED',
         'ASSIGNED',
+        'ACCEPTED',
         'ON_THE_WAY',
         'ARRIVED',
         'HANDLING',
@@ -200,16 +207,24 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         isActive: active('ASSIGNED'),
       ),
       _TimelineStep(
+        title: 'Diterima Petugas',
+        subtitle: _formatDate(report.acceptedAt),
+        isActive: active('ACCEPTED'),
+      ),
+      _TimelineStep(
         title: 'Dalam Perjalanan',
-        subtitle: status == 'ON_THE_WAY' || active('ON_THE_WAY')
-            ? 'Petugas menuju lokasi'
-            : '-',
+        subtitle: active('ON_THE_WAY') ? 'Petugas menuju lokasi' : '-',
         isActive: active('ON_THE_WAY'),
       ),
       _TimelineStep(
         title: 'Tiba di Lokasi',
         subtitle: _formatDate(report.arrivedAt),
         isActive: active('ARRIVED'),
+      ),
+      _TimelineStep(
+        title: 'Penanganan',
+        subtitle: active('HANDLING') ? 'Petugas sedang menangani laporan' : '-',
+        isActive: active('HANDLING'),
       ),
       _TimelineStep(
         title: 'Selesai',
@@ -258,7 +273,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   onRetry: () async {
                     await context
                         .read<EmergencyReportController>()
-                        .fetchReportDetail(widget.reportId);
+                        .refreshReportDetailData(
+                          widget.reportId,
+                          showLoading: true,
+                        );
                   },
                 ),
               );
@@ -273,6 +291,28 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             final imageUrl = resolveFileUrl(report.photoUrl);
             final statusStyle = _statusColor(report.status);
             final timeline = _buildTimeline(report);
+            final latestDispatch = controller.dispatches.isNotEmpty
+                ? controller.dispatches.first
+                : null;
+
+            final dispatchStatus = latestDispatch?.dispatchStatus ?? '-';
+
+            final officerName =
+                latestDispatch?.officer?['fullName']?.toString() ??
+                    'Belum ditentukan';
+
+            final officerPhone =
+                latestDispatch?.officer?['phoneNumber']?.toString() ?? '-';
+
+            final officerRole =
+                latestDispatch?.officer?['role']?.toString() ?? '-';
+
+            final ambulanceCode =
+                latestDispatch?.ambulance?['code']?.toString() ??
+                    'Belum ditentukan';
+
+            final ambulancePlate =
+                latestDispatch?.ambulance?['plateNumber']?.toString() ?? '-';
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
@@ -350,6 +390,59 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                         _InfoRow(
                           label: 'Longitude',
                           value: report.longitude ?? '-',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'Service & Dispatch',
+                    child: Column(
+                      children: [
+                        _InfoRow(
+                          label: 'Service',
+                          value: report.service?.serviceName ??
+                              _cleanText(report.emergencyType),
+                        ),
+                        _InfoRow(
+                          label: 'Service Code',
+                          value: report.service?.serviceCode ?? '-',
+                        ),
+                        _InfoRow(
+                          label: 'Dispatch Status',
+                          value: _cleanText(dispatchStatus),
+                        ),
+                        _InfoRow(
+                          label: 'Assigned At',
+                          value: _formatDate(latestDispatch?.assignedAt),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'Petugas & Ambulance',
+                    child: Column(
+                      children: [
+                        _InfoRow(
+                          label: 'Officer',
+                          value: officerName,
+                        ),
+                        _InfoRow(
+                          label: 'Role',
+                          value: _cleanText(officerRole),
+                        ),
+                        _InfoRow(
+                          label: 'Phone',
+                          value: officerPhone,
+                        ),
+                        _InfoRow(
+                          label: 'Ambulance',
+                          value: ambulanceCode,
+                        ),
+                        _InfoRow(
+                          label: 'Plate',
+                          value: ambulancePlate,
                         ),
                       ],
                     ),
