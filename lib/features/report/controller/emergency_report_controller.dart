@@ -22,6 +22,7 @@ class EmergencyReportController extends ChangeNotifier {
   bool isLoadingDetail = false;
   bool isLoadingDispatch = false;
   bool isLoadingOfficerLocation = false;
+  bool isCancellingReport = false;
 
   String? errorMessage;
 
@@ -234,5 +235,39 @@ class EmergencyReportController extends ChangeNotifier {
   void clearError() {
     errorMessage = null;
     notifyListeners();
+  }
+
+  Future<bool> cancelReport({
+    required String reportId,
+    String? notes,
+  }) async {
+    try {
+      isCancellingReport = true;
+      errorMessage = null;
+      notifyListeners();
+
+      final updatedReport = await emergencyReportRepository.cancelReport(
+        reportId: reportId,
+        notes: notes,
+      );
+
+      selectedReport = updatedReport;
+
+      await fetchDispatchByReport(
+        reportId,
+        showLoading: false,
+      );
+
+      return true;
+    } on AppException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } catch (_) {
+      errorMessage = 'Gagal membatalkan laporan.';
+      return false;
+    } finally {
+      isCancellingReport = false;
+      notifyListeners();
+    }
   }
 }

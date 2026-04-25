@@ -163,4 +163,30 @@ class EmergencyReportApiService {
       throw DioErrorHandler.handle(error);
     }
   }
+
+  Future<EmergencyReportModel> cancelReport({
+    required String reportId,
+    String? notes,
+  }) async {
+    try {
+      final response = await dioClient.dio.patch(
+        '${ApiConstants.emergencyReport}/$reportId/cancel',
+        data: {
+          'notes': notes ?? 'Report cancelled by user',
+        },
+      );
+
+      final rawData = Map<String, dynamic>.from(
+        response.data['data'] as Map? ?? {},
+      );
+
+      return EmergencyReportModel.fromJson(rawData);
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
 }

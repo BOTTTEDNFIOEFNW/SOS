@@ -24,11 +24,92 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EmergencyReportController>().fetchReportDetail(
+      if (!mounted) return;
+
+      context.read<EmergencyReportController>().refreshReportDetailData(
             widget.reportId,
+            showLoading: true,
           );
     });
+  }
+
+  bool _canCancelReport(String status) {
+    return ['REPORTED', 'ASSIGNED'].contains(status.toUpperCase());
+  }
+
+  Future<void> _showCancelReportDialog(EmergencyReportModel report) async {
+    String notesValue = '';
+
+    final notes = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Batalkan Laporan?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: TextField(
+            maxLines: 4,
+            onChanged: (value) => notesValue = value,
+            decoration: const InputDecoration(
+              hintText: 'Alasan pembatalan...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  notesValue.trim().isEmpty
+                      ? 'Laporan dibatalkan oleh user'
+                      : notesValue.trim(),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Batalkan'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+    if (notes == null) return;
+
+    final controller = context.read<EmergencyReportController>();
+
+    final success = await controller.cancelReport(
+      reportId: report.id,
+      notes: notes,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Laporan berhasil dibatalkan'
+              : (controller.errorMessage ?? 'Gagal membatalkan laporan'),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: success ? AppColors.primary : AppColors.danger,
+      ),
+    );
   }
 
   @override
@@ -308,6 +389,39 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       ),
                     ),
                   ),
+                  if (_canCancelReport(report.status)) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: controller.isCancellingReport
+                            ? null
+                            : () => _showCancelReportDialog(report),
+                        icon: controller.isCancellingReport
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.cancel_outlined),
+                        label: Text(
+                          controller.isCancellingReport
+                              ? 'Membatalkan...'
+                              : 'Batalkan Laporan',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.danger,
+                          side: const BorderSide(color: AppColors.danger),
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );

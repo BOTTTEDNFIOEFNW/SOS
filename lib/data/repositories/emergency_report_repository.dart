@@ -42,4 +42,14 @@ class EmergencyReportRepository {
   ) async {
     return emergencyReportApiService.getLatestOfficerLocation(reportId);
   }
+
+  Future<EmergencyReportModel> cancelReport({
+    required String reportId,
+    String? notes,
+  }) {
+    return emergencyReportApiService.cancelReport(
+      reportId: reportId,
+      notes: notes,
+    );
+  }
 }
