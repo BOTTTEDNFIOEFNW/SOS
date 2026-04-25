@@ -55,8 +55,8 @@ class _TrackingPageState extends State<TrackingPage> {
     _socketService.off('connect');
     _socketService.off('connect_error');
     _socketService.off('officer:location_updated');
-    _socketService.off('dispatch:status_updated');
-    _socketService.off('report:status_updated');
+    _socketService.off('dispatch:updated');
+    _socketService.off('report:updated');
     _socketService.disconnect();
 
     context.read<EmergencyReportController>().clearSelectedReport();
@@ -101,7 +101,7 @@ class _TrackingPageState extends State<TrackingPage> {
       await _refreshTrackingData();
     });
 
-    _socketService.on('dispatch:status_updated', (data) async {
+    _socketService.on('dispatch:updated', (data) async {
       debugPrint('Socket dispatch:status_updated => $data');
 
       final reportId = data is Map ? data['reportId']?.toString() : null;
@@ -110,7 +110,7 @@ class _TrackingPageState extends State<TrackingPage> {
       await _refreshTrackingData();
     });
 
-    _socketService.on('report:status_updated', (data) async {
+    _socketService.on('report:updated', (data) async {
       debugPrint('Socket report:status_updated => $data');
 
       final reportId = data is Map ? data['reportId']?.toString() : null;

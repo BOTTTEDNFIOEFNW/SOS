@@ -8,6 +8,10 @@ import '../controller/emergency_report_controller.dart';
 import '../../../core/utils/file_url_helper.dart';
 import "../../../routes/app_routes.dart";
 
+import '../../../core/constants/api_constants.dart';
+import '../../../core/services/socket_service.dart';
+import '../../auth/controller/auth_controller.dart';
+
 class ReportDetailPage extends StatefulWidget {
   final String reportId;
 
@@ -21,18 +25,109 @@ class ReportDetailPage extends StatefulWidget {
 }
 
 class _ReportDetailPageState extends State<ReportDetailPage> {
+  final SocketService _socketService = SocketService();
+  bool _isRealtimeRefreshing = false;
+
   @override
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
 
-      context.read<EmergencyReportController>().refreshReportDetailData(
+      await context.read<EmergencyReportController>().refreshReportDetailData(
             widget.reportId,
             showLoading: true,
           );
+
+      if (!mounted) return;
+
+      _setupSocket();
     });
+  }
+
+  void _setupSocket() {
+    final authController = context.read<AuthController>();
+    final token = authController.accessToken;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('Report detail socket skipped: access token not found');
+      return;
+    }
+
+    _socketService.connect(
+      baseUrl: ApiConstants.socketBaseUrl,
+      token: token,
+    );
+
+    _socketService.on('connect', (_) {
+      debugPrint('Report detail socket connected');
+      _socketService.joinReport(widget.reportId);
+    });
+
+    _socketService.on('connect_error', (error) {
+      debugPrint('Report detail socket connect error: $error');
+    });
+
+    _socketService.on('report:updated', (data) async {
+      debugPrint('Report detail report:updated => $data');
+
+      final reportId = _extractReportId(data);
+      if (reportId != widget.reportId) return;
+
+      await _refreshRealtimeData();
+    });
+
+    _socketService.on('dispatch:updated', (data) async {
+      debugPrint('Report detail dispatch:updated => $data');
+
+      final reportId = _extractReportId(data);
+      if (reportId != widget.reportId) return;
+
+      await _refreshRealtimeData();
+    });
+
+    _socketService.on('officer:location_updated', (data) async {
+      debugPrint('Report detail officer:location_updated => $data');
+
+      final reportId = _extractReportId(data);
+      if (reportId != widget.reportId) return;
+
+      await _refreshRealtimeData();
+    });
+  }
+
+  String? _extractReportId(dynamic data) {
+    if (data is! Map) return null;
+
+    return data['reportId']?.toString() ??
+        data['id']?.toString() ??
+        data['report']?['id']?.toString();
+  }
+
+  Future<void> _refreshRealtimeData() async {
+    if (_isRealtimeRefreshing) return;
+
+    _isRealtimeRefreshing = true;
+
+    try {
+      await context.read<EmergencyReportController>().refreshReportDetailData(
+            widget.reportId,
+            showLoading: false,
+          );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status laporan diperbarui'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      _isRealtimeRefreshing = false;
+    }
   }
 
   String _cleanText(String? value) {
@@ -120,6 +215,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   @override
   void dispose() {
+    _socketService.leaveReport(widget.reportId);
+    _socketService.off('connect');
+    _socketService.off('connect_error');
+    _socketService.off('report:updated');
+    _socketService.off('dispatch:updated');
+    _socketService.off('officer:location_updated');
+    _socketService.disconnect();
+
     context.read<EmergencyReportController>().clearSelectedReport();
     super.dispose();
   }
