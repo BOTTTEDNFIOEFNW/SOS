@@ -8,12 +8,279 @@ import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../report/presentation/emergency_report_form_page.dart';
 
-class UserDashboardPage extends StatelessWidget {
+import '../../../data/models/service_model.dart';
+import '../../../core/utils/file_url_helper.dart';
+import '../controller/service_controller.dart';
+
+class _ServiceActionCard extends StatelessWidget {
+  final ServiceModel service;
+  final VoidCallback? onTap;
+
+  const _ServiceActionCard({
+    required this.service,
+    this.onTap,
+  });
+
+  Color get serviceColor {
+    final hex = service.colorHex;
+
+    if (hex == null || hex.isEmpty) {
+      return const Color(0xFF3B82F6);
+    }
+
+    final cleaned = hex.replaceAll('#', '');
+
+    if (cleaned.length != 6) {
+      return const Color(0xFF3B82F6);
+    }
+
+    return Color(int.parse('FF$cleaned', radix: 16));
+  }
+
+  IconData get iconFromDatabase {
+    final iconName = (service.iconName ?? '').toLowerCase().trim();
+    final code = service.serviceCode.toUpperCase();
+
+    if (iconName.contains('ambulance')) {
+      return Icons.local_hospital_rounded;
+    }
+
+    if (iconName.contains('fire')) {
+      return Icons.local_fire_department_rounded;
+    }
+
+    if (iconName.contains('police') || iconName.contains('shield')) {
+      return Icons.shield_outlined;
+    }
+
+    if (iconName.contains('hospital')) {
+      return Icons.medical_services_outlined;
+    }
+
+    if (iconName.contains('sos')) {
+      return Icons.sos;
+    }
+
+    if (iconName.contains('emergency')) {
+      return Icons.emergency_rounded;
+    }
+
+    // fallback dari serviceCode kalau iconName kosong / tidak cocok
+    if (code.contains('AMBULANCE')) return Icons.local_hospital_rounded;
+    if (code.contains('FIRE')) return Icons.local_fire_department_rounded;
+    if (code.contains('POLICE') || code.contains('CRIME')) {
+      return Icons.shield_outlined;
+    }
+    if (code.contains('HOSPITAL')) return Icons.medical_services_outlined;
+
+    return Icons.emergency_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconUrl = resolveFileUrl(service.iconUrl);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 140,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: serviceColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: iconUrl.isNotEmpty
+                    ? Image.network(
+                        iconUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) {
+                          return Icon(
+                            iconFromDatabase,
+                            color: serviceColor,
+                            size: 28,
+                          );
+                        },
+                      )
+                    : Icon(
+                        iconFromDatabase,
+                        color: serviceColor,
+                        size: 28,
+                      ),
+              ),
+              const Spacer(),
+              Text(
+                service.serviceName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DynamicServicesGrid extends StatelessWidget {
+  final ServiceController controller;
+
+  const _DynamicServicesGrid({
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (controller.errorMessage != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.danger,
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Gagal memuat layanan',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: controller.fetchActiveServices,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (controller.services.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Text(
+          'Belum ada layanan aktif',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      itemCount: controller.services.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 1.12,
+      ),
+      itemBuilder: (context, index) {
+        final service = controller.services[index];
+
+        return _ServiceActionCard(
+          service: service,
+          onTap: () {
+            if (!service.requiresDispatch) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${service.serviceName} belum membutuhkan laporan dispatch',
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EmergencyReportFormPage(
+                  serviceId: service.id,
+                  initialEmergencyType: service.serviceCode,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class UserDashboardPage extends StatefulWidget {
   const UserDashboardPage({super.key});
+
+  @override
+  State<UserDashboardPage> createState() => _UserDashboardPageState();
+}
+
+class _UserDashboardPageState extends State<UserDashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    Future.microtask(() {
+      context.read<ServiceController>().fetchActiveServices();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
+    final serviceController = context.watch<ServiceController>();
+
     final userName = authController.currentUser?.fullName.isNotEmpty == true
         ? authController.currentUser!.fullName
         : 'Pengguna';
@@ -37,121 +304,41 @@ class UserDashboardPage extends StatelessWidget {
               },
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _UserLocationCard(),
-                    // const SizedBox(height: 20),
-                    const SizedBox(height: 24),
-                    const _SectionTitle(title: 'Layanan Cepat'),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Ambulans',
-                            icon: Icons.local_hospital_rounded,
-                            iconColor: const Color(0xFF3B82F6),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const EmergencyReportFormPage(
-                                    initialEmergencyType: 'AMBULANCE',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Kebakaran',
-                            icon: Icons.local_fire_department_rounded,
-                            iconColor: const Color(0xFFFF6B2D),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const EmergencyReportFormPage(
-                                    initialEmergencyType: 'FIRE',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'Kriminal',
-                            icon: Icons.shield_outlined,
-                            iconColor: const Color(0xFFEF4444),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const EmergencyReportFormPage(
-                                    initialEmergencyType: 'CRIME',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _ActionCard(
-                            title: 'RS Terdekat',
-                            icon: Icons.medical_services_outlined,
-                            iconColor: const Color(0xFF22C55E),
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Fitur RS Terdekat belum dihubungkan',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                  margin: const EdgeInsets.all(16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _WideActionCard(
-                      title: 'Riwayat Laporan',
-                      subtitle: 'Lihat status dan detail laporan Anda',
-                      icon: Icons.receipt_long_outlined,
-                      iconColor: const Color(0xFFA855F7),
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.reportHistory,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    // const _SectionTitle(title: 'Status Terakhir'),
-                    // const SizedBox(height: 14),
-                    // const _LatestReportCard(),
-                    // const SizedBox(height: 24),
-                    const _SectionTitle(title: 'Akun'),
-                    const SizedBox(height: 14),
-                    const _VerificationCard(),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await context.read<ServiceController>().fetchActiveServices();
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _UserLocationCard(),
+                      const SizedBox(height: 24),
+                      const _SectionTitle(title: 'Layanan Cepat'),
+                      const SizedBox(height: 14),
+                      _DynamicServicesGrid(
+                        controller: serviceController,
+                      ),
+                      const SizedBox(height: 14),
+                      _WideActionCard(
+                        title: 'Riwayat Laporan',
+                        subtitle: 'Lihat status dan detail laporan Anda',
+                        icon: Icons.receipt_long_outlined,
+                        iconColor: const Color(0xFFA855F7),
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.reportHistory,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      const _SectionTitle(title: 'Akun'),
+                      const SizedBox(height: 14),
+                      const _VerificationCard(),
+                    ],
+                  ),
                 ),
               ),
             ),
