@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../../data/models/report/dispatch_model.dart';
 import '../../../routes/app_routes.dart';
@@ -17,9 +16,13 @@ class OfficerDashboardPage extends StatefulWidget {
 }
 
 class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
+  static const Color yellow = Color(0xFFF4BB00);
+  static const Color softGreen = Color(0xFF2D6858);
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OfficerDispatchController>().fetchDispatches();
     });
@@ -39,8 +42,12 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         return (bg: const Color(0xFFDBEAFE), text: const Color(0xFF2563EB));
       case 'ARRIVED':
         return (bg: const Color(0xFFDCFCE7), text: const Color(0xFF16A34A));
+      case 'HANDLING':
+        return (bg: const Color(0xFFFEF3C7), text: const Color(0xFFD97706));
       case 'COMPLETED':
         return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
+      case 'CANCELLED':
+        return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
       default:
         return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
     }
@@ -48,7 +55,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
   Future<void> _handleAccept(DispatchModel dispatch) async {
     final dispatchController = context.read<OfficerDispatchController>();
-
     final success = await dispatchController.acceptDispatch(dispatch.id);
 
     if (!mounted) return;
@@ -57,10 +63,10 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       SnackBar(
         content: Text(
           success
-              ? 'Dispatch accepted successfully'
-              : (dispatchController.errorMessage ??
-                  'Failed to accept dispatch'),
+              ? 'Dispatch berhasil diterima'
+              : (dispatchController.errorMessage ?? 'Gagal menerima dispatch'),
         ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -84,16 +90,16 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       SnackBar(
         content: Text(
           success
-              ? 'Dispatch started successfully'
-              : (dispatchController.errorMessage ?? 'Failed to start dispatch'),
+              ? 'Dispatch dimulai, live tracking aktif'
+              : (dispatchController.errorMessage ?? 'Gagal memulai dispatch'),
         ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   Future<void> _handleArrive(DispatchModel dispatch) async {
     final dispatchController = context.read<OfficerDispatchController>();
-
     final success = await dispatchController.arriveDispatch(dispatch.id);
 
     if (!mounted) return;
@@ -102,9 +108,10 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       SnackBar(
         content: Text(
           success
-              ? 'Arrival updated successfully'
-              : (dispatchController.errorMessage ?? 'Failed to update arrival'),
+              ? 'Status tiba di lokasi berhasil diperbarui'
+              : (dispatchController.errorMessage ?? 'Gagal update arrival'),
         ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -128,12 +135,24 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       SnackBar(
         content: Text(
           success
-              ? 'Dispatch completed successfully'
+              ? 'Dispatch selesai'
               : (dispatchController.errorMessage ??
-                  'Failed to complete dispatch'),
+                  'Gagal menyelesaikan dispatch'),
         ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  int _activeDispatchCount(List<DispatchModel> dispatches) {
+    return dispatches
+        .where(
+          (item) => ![
+            'COMPLETED',
+            'CANCELLED',
+          ].contains(item.dispatchStatus.toUpperCase()),
+        )
+        .length;
   }
 
   @override
@@ -146,98 +165,94 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         ? authController.currentUser!.fullName
         : 'Officer';
 
+    final activeCount = _activeDispatchCount(dispatchController.dispatches);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _OfficerHeader(
-              officerName: officerName,
-              onLogoutTap: () async {
-                await showLogoutConfirmation(
-                  context,
-                  () async {
-                    await locationController.stopLiveTracking();
-                    await authController.logout();
-                    if (!context.mounted) return;
-                    Navigator.pushReplacementNamed(context, AppRoutes.login);
-                  },
-                );
-              },
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/dashboard/home-page.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: Builder(
-                  builder: (context) {
-                    if (dispatchController.isLoading &&
-                        dispatchController.dispatches.isEmpty) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
+          ),
+          SafeArea(
+            child: RefreshIndicator(
+              color: softGreen,
+              backgroundColor: yellow,
+              onRefresh: _refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 34),
+                children: [
+                  _OfficerHeader(
+                    officerName: officerName,
+                    onLogoutTap: () async {
+                      await showLogoutConfirmation(
+                        context,
+                        () async {
+                          await locationController.stopLiveTracking();
+                          await authController.logout();
 
-                    if (dispatchController.errorMessage != null &&
-                        dispatchController.dispatches.isEmpty) {
-                      return ListView(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          const SizedBox(height: 80),
-                          Center(
-                            child: Text(
-                              dispatchController.errorMessage!,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      );
-                    }
+                          if (!context.mounted) return;
 
-                    return ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                      children: [
-                        _DutyStatusCard(
-                          isSharingLocation:
-                              locationController.isSharingLocation,
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'Dispatch Inbox',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (dispatchController.dispatches.isEmpty)
-                          const _EmptyDispatchCard(),
-                        ...dispatchController.dispatches.map((dispatch) {
-                          final style = _statusColor(dispatch.dispatchStatus);
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _DispatchActionCard(
-                              dispatch: dispatch,
-                              statusBg: style.bg,
-                              statusText: style.text,
-                              isActionLoading:
-                                  dispatchController.isActionLoading,
-                              onAccept: () => _handleAccept(dispatch),
-                              onStart: () => _handleStart(dispatch),
-                              onArrive: () => _handleArrive(dispatch),
-                              onComplete: () => _handleComplete(dispatch),
-                            ),
+                          Navigator.pushReplacementNamed(
+                            context,
+                            AppRoutes.login,
                           );
-                        }),
-                      ],
-                    );
-                  },
-                ),
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  _OfficerSummaryCard(
+                    activeDispatchCount: activeCount,
+                    totalDispatchCount: dispatchController.dispatches.length,
+                    isSharingLocation: locationController.isSharingLocation,
+                  ),
+                  const SizedBox(height: 16),
+                  _DutyStatusCard(
+                    isSharingLocation: locationController.isSharingLocation,
+                    errorMessage: locationController.errorMessage,
+                  ),
+                  const SizedBox(height: 20),
+                  const _SectionTitle(title: 'Dispatch Masuk'),
+                  const SizedBox(height: 12),
+                  if (dispatchController.isLoading &&
+                      dispatchController.dispatches.isEmpty)
+                    const _LoadingCard()
+                  else if (dispatchController.errorMessage != null &&
+                      dispatchController.dispatches.isEmpty)
+                    _ErrorCard(
+                      message: dispatchController.errorMessage!,
+                      onRetry: _refresh,
+                    )
+                  else if (dispatchController.dispatches.isEmpty)
+                    const _EmptyDispatchCard()
+                  else
+                    ...dispatchController.dispatches.map((dispatch) {
+                      final style = _statusColor(dispatch.dispatchStatus);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _DispatchActionCard(
+                          dispatch: dispatch,
+                          statusBg: style.bg,
+                          statusText: style.text,
+                          isActionLoading: dispatchController.isActionLoading,
+                          onAccept: () => _handleAccept(dispatch),
+                          onStart: () => _handleStart(dispatch),
+                          onArrive: () => _handleArrive(dispatch),
+                          onComplete: () => _handleComplete(dispatch),
+                        ),
+                      );
+                    }),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -254,52 +269,160 @@ class _OfficerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Officer Dashboard',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                officerName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        GestureDetector(
+          onTap: onLogoutTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: const Icon(
+              Icons.logout_rounded,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OfficerSummaryCard extends StatelessWidget {
+  final int activeDispatchCount;
+  final int totalDispatchCount;
+  final bool isSharingLocation;
+
+  const _OfficerSummaryCard({
+    required this.activeDispatchCount,
+    required this.totalDispatchCount,
+    required this.isSharingLocation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: const BoxDecoration(
-        color: AppColors.secondary,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Officer Dashboard',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  officerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+          _SummaryItem(
+            label: 'Aktif',
+            value: activeDispatchCount.toString(),
+            icon: Icons.local_shipping_outlined,
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            margin: const EdgeInsets.symmetric(horizontal: 14),
+            color: Colors.white.withValues(alpha: 0.14),
+          ),
+          _SummaryItem(
+            label: 'Total',
+            value: totalDispatchCount.toString(),
+            icon: Icons.assignment_outlined,
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            margin: const EdgeInsets.symmetric(horizontal: 14),
+            color: Colors.white.withValues(alpha: 0.14),
+          ),
+          _SummaryItem(
+            label: 'Tracking',
+            value: isSharingLocation ? 'ON' : 'OFF',
+            icon: Icons.location_searching_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: const Color(0xFFF4BB00),
+            size: 24,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          GestureDetector(
-            onTap: onLogoutTap,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.logout_rounded,
-                color: Colors.white,
-              ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.68),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -310,34 +433,44 @@ class _OfficerHeader extends StatelessWidget {
 
 class _DutyStatusCard extends StatelessWidget {
   final bool isSharingLocation;
+  final String? errorMessage;
 
   const _DutyStatusCard({
     required this.isSharingLocation,
+    this.errorMessage,
   });
 
   @override
   Widget build(BuildContext context) {
+    final activeColor =
+        isSharingLocation ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        color: isSharingLocation
+            ? const Color(0xFF16A34A).withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: isSharingLocation
-                ? const Color(0xFFDCFCE7)
-                : const Color(0xFFE2E8F0),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
             child: Icon(
               isSharingLocation
-                  ? Icons.location_searching
+                  ? Icons.location_searching_rounded
                   : Icons.location_disabled_outlined,
-              color: isSharingLocation
-                  ? AppColors.success
-                  : AppColors.textSecondary,
+              color: activeColor,
+              size: 28,
             ),
           ),
           const SizedBox(width: 14),
@@ -345,23 +478,47 @@ class _DutyStatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Live Tracking',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.70),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isSharingLocation ? 'Aktif' : 'Tidak Aktif',
+                  isSharingLocation ? 'Aktif Mengirim Lokasi' : 'Tidak Aktif',
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
+                if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    errorMessage!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFFCA5A5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
+            ),
+          ),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: isSharingLocation
+                  ? const Color(0xFF86EFAC)
+                  : Colors.white.withValues(alpha: 0.40),
+              shape: BoxShape.circle,
             ),
           ),
         ],
@@ -391,105 +548,158 @@ class _DispatchActionCard extends StatelessWidget {
     required this.onComplete,
   });
 
+  String _formatText(String value) {
+    return value.replaceAll('_', ' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final reportCode =
         dispatch.report?['reportCode']?.toString() ?? 'No report code';
     final emergencyType = dispatch.report?['emergencyType']?.toString() ?? '-';
     final address = dispatch.report?['addressSnapshot']?.toString() ?? '-';
-
     final status = dispatch.dispatchStatus.toUpperCase();
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.local_shipping_outlined,
-                color: AppColors.primary,
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D6858).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.emergency_share_outlined,
+                  color: Color(0xFF2D6858),
+                  size: 28,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 13),
               Expanded(
-                child: Text(
-                  reportCode,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reportCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF173B2D),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatText(emergencyType),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFF173B2D).withValues(alpha: 0.70),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: statusBg,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  status.replaceAll('_', ' '),
+                  _formatText(status),
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
                     color: statusText,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            emergencyType.replaceAll('_', ' '),
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            address,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: Color(0xFF2D6858),
+                  size: 22,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    address,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
           if (status == 'ASSIGNED')
             _ActionButton(
-              label: 'Accept Dispatch',
+              label: 'Terima Dispatch',
+              icon: Icons.check_circle_outline_rounded,
               onPressed: isActionLoading ? null : onAccept,
-              bgColor: AppColors.warning,
-              textColor: Colors.white,
+              bgColor: const Color(0xFFF4BB00),
+              textColor: const Color(0xFF173B2D),
             ),
           if (status == 'ACCEPTED')
             _ActionButton(
-              label: 'Start Dispatch',
+              label: 'Mulai Menuju Lokasi',
+              icon: Icons.navigation_outlined,
               onPressed: isActionLoading ? null : onStart,
-              bgColor: AppColors.primary,
+              bgColor: const Color(0xFF2D6858),
               textColor: Colors.white,
             ),
           if (status == 'ON_THE_WAY')
             _ActionButton(
-              label: 'Mark Arrived',
+              label: 'Tandai Sudah Tiba',
+              icon: Icons.place_outlined,
               onPressed: isActionLoading ? null : onArrive,
-              bgColor: AppColors.success,
+              bgColor: const Color(0xFF16A34A),
               textColor: Colors.white,
             ),
           if (status == 'ARRIVED' || status == 'HANDLING')
             _ActionButton(
-              label: 'Complete Dispatch',
+              label: 'Selesaikan Dispatch',
+              icon: Icons.task_alt_rounded,
               onPressed: isActionLoading ? null : onComplete,
-              bgColor: AppColors.secondary,
+              bgColor: const Color(0xFF173B2D),
               textColor: Colors.white,
             ),
           if (status == 'COMPLETED')
@@ -497,15 +707,15 @@ class _DispatchActionCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: const Color(0xFFDCFCE7),
                 borderRadius: BorderRadius.circular(16),
               ),
               alignment: Alignment.center,
               child: const Text(
-                'Dispatch Completed',
+                'Dispatch Selesai',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF16A34A),
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
@@ -517,12 +727,14 @@ class _DispatchActionCard extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   final String label;
+  final IconData icon;
   final VoidCallback? onPressed;
   final Color bgColor;
   final Color textColor;
 
   const _ActionButton({
     required this.label,
+    required this.icon,
     required this.onPressed,
     required this.bgColor,
     required this.textColor,
@@ -532,20 +744,121 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
+      height: 52,
+      child: ElevatedButton.icon(
         onPressed: onPressed,
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: bgColor,
           foregroundColor: textColor,
+          disabledBackgroundColor: bgColor.withValues(alpha: 0.52),
+          disabledForegroundColor: textColor.withValues(alpha: 0.70),
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(17),
           ),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+
+  const _SectionTitle({
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
         ),
+      ),
+      child: const CircularProgressIndicator(
+        color: Color(0xFFF4BB00),
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _ErrorCard({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFF4BB00),
+            size: 36,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text(
+              'Coba Lagi',
+              style: TextStyle(
+                color: Color(0xFFF4BB00),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -557,35 +870,47 @@ class _EmptyDispatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 26),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 48,
-            color: AppColors.textSecondary,
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Belum ada dispatch',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4BB00).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(
+              Icons.inbox_outlined,
+              size: 34,
+              color: Color(0xFFF4BB00),
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 14),
+          const Text(
+            'Belum Ada Dispatch',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
-            'Dispatch yang masuk akan muncul di sini.',
+            'Dispatch baru akan muncul di sini saat admin atau sistem auto assign menugaskan Anda.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.72),
+              height: 1.4,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
