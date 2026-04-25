@@ -8,18 +8,20 @@ import 'core/storage/secure_storage_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/emergency_report_repository.dart';
 import 'data/repositories/officer_location_repository.dart';
+import 'data/repositories/officer_dispatch_repository.dart';
+import 'data/repositories/service_repository.dart';
 
 import 'data/services/auth_api_service.dart';
 import 'data/services/emergency_report_api_service.dart';
 import 'data/services/officer_location_api_service.dart';
+import 'data/services/officer_dispatch_api_service.dart';
+import 'data/services/service_api_service.dart';
 
 import 'features/auth/controller/auth_controller.dart';
 import 'features/report/controller/emergency_report_controller.dart';
 import 'features/officer/controller/officer_location_controller.dart';
-
-import 'data/repositories/officer_dispatch_repository.dart';
-import 'data/services/officer_dispatch_api_service.dart';
 import 'features/officer/controller/officer_dispatch_controller.dart';
+import 'features/home/controller/service_controller.dart';
 
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
@@ -55,12 +57,16 @@ Future<void> main() async {
     officerDispatchApiService: officerDispatchApiService,
   );
 
+  final serviceApiService = ServiceApiService(dioClient);
+  final serviceRepository = ServiceRepository(serviceApiService);
+
   runApp(
     MyApp(
       authRepository: authRepository,
       emergencyReportRepository: emergencyReportRepository,
       officerLocationRepository: officerLocationRepository,
       officerDispatchRepository: officerDispatchRepository,
+      serviceRepository: serviceRepository,
     ),
   );
 }
@@ -70,6 +76,7 @@ class MyApp extends StatelessWidget {
   final EmergencyReportRepository emergencyReportRepository;
   final OfficerLocationRepository officerLocationRepository;
   final OfficerDispatchRepository officerDispatchRepository;
+  final ServiceRepository serviceRepository;
 
   const MyApp({
     super.key,
@@ -77,6 +84,7 @@ class MyApp extends StatelessWidget {
     required this.emergencyReportRepository,
     required this.officerLocationRepository,
     required this.officerDispatchRepository,
+    required this.serviceRepository,
   });
 
   @override
@@ -101,11 +109,14 @@ class MyApp extends StatelessWidget {
             officerDispatchRepository: officerDispatchRepository,
           ),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ServiceController(serviceRepository),
+        ),
       ],
       child: MaterialApp(
-      debugShowCheckedModeBanner: false,
-      onGenerateRoute: AppPages.onGenerateRoute,
-      initialRoute: AppRoutes.login, 
+        debugShowCheckedModeBanner: false,
+        onGenerateRoute: AppPages.onGenerateRoute,
+        initialRoute: AppRoutes.login,
       ),
     );
   }
