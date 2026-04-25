@@ -265,7 +265,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   }
 
   Future<void> _showCompleteNotesDialog(DispatchModel dispatch) async {
-    final notesController = TextEditingController();
+    String notesValue = '';
 
     final notes = await showDialog<String>(
       context: context,
@@ -312,9 +312,11 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                 ),
                 const SizedBox(height: 18),
                 TextField(
-                  controller: notesController,
                   maxLines: 4,
                   style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    notesValue = value;
+                  },
                   decoration: InputDecoration(
                     hintText: 'Contoh: Pasien sudah dibantu dan aman.',
                     hintStyle: TextStyle(
@@ -324,6 +326,15 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     fillColor: Colors.white.withValues(alpha: 0.10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.16),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.16),
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
@@ -338,9 +349,14 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(dialogContext, null),
+                        onPressed: () {
+                          Navigator.pop(dialogContext, null);
+                        },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.26),
+                          ),
                         ),
                         child: const Text('Batal'),
                       ),
@@ -349,17 +365,14 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          final value = notesController.text.trim();
+                          final value = notesValue.trim();
 
-                          if (value.isEmpty) {
-                            Navigator.pop(
-                              dialogContext,
-                              'Dispatch completed by officer',
-                            );
-                            return;
-                          }
-
-                          Navigator.pop(dialogContext, value);
+                          Navigator.pop(
+                            dialogContext,
+                            value.isEmpty
+                                ? 'Dispatch completed by officer'
+                                : value,
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF4BB00),
@@ -379,8 +392,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         );
       },
     );
-
-    notesController.dispose();
 
     if (!mounted) return;
     if (notes == null) return;
@@ -413,6 +424,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+
       return;
     }
 
@@ -588,6 +600,37 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     isSharingLocation: locationController.isSharingLocation,
                   ),
                   const SizedBox(height: 16),
+                  _OfficerAvailabilityCard(
+                    status: dispatchController.officerStatus,
+                    isLoading: dispatchController.isStatusLoading,
+                    hasActiveDispatch: activeCount > 0,
+                    onChanged: (value) async {
+                      final newStatus = value ? 'AVAILABLE' : 'OFFLINE';
+
+                      final success = await context
+                          .read<OfficerDispatchController>()
+                          .updateOfficerStatus(
+                            newStatus,
+                          );
+
+                      if (!context.mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? 'Status officer updated to $newStatus'
+                                : (context
+                                        .read<OfficerDispatchController>()
+                                        .errorMessage ??
+                                    'Failed to update status'),
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   _DutyStatusCard(
                     isSharingLocation: locationController.isSharingLocation,
                     errorMessage: locationController.errorMessage,
@@ -759,6 +802,119 @@ class _OfficerSummaryCard extends StatelessWidget {
             value: isSharingLocation ? 'ON' : 'OFF',
             icon: Icons.location_searching_rounded,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfficerAvailabilityCard extends StatelessWidget {
+  final String status;
+  final bool isLoading;
+  final bool hasActiveDispatch;
+  final ValueChanged<bool> onChanged;
+
+  const _OfficerAvailabilityCard({
+    required this.status,
+    required this.isLoading,
+    required this.hasActiveDispatch,
+    required this.onChanged,
+  });
+
+  bool get isAvailable => status.toUpperCase() == 'AVAILABLE';
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor =
+        isAvailable ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              isAvailable
+                  ? Icons.check_circle_rounded
+                  : Icons.pause_circle_filled_rounded,
+              color: activeColor,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Availability',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.70),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isAvailable ? 'Available for Dispatch' : 'Offline',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                if (hasActiveDispatch) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Status dikunci karena masih ada dispatch aktif',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isLoading)
+            const SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: Color(0xFFF4BB00),
+              ),
+            )
+          else
+            Switch(
+              value: isAvailable,
+              onChanged: hasActiveDispatch ? null : onChanged,
+              activeThumbColor: const Color(0xFFF4BB00),
+              activeTrackColor: const Color(0xFFF4BB00).withValues(alpha: 0.35),
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.24),
+            ),
         ],
       ),
     );
