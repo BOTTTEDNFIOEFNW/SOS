@@ -32,6 +32,7 @@ class EmergencyReportController extends ChangeNotifier {
   List<DispatchModel> dispatches = [];
 
   Future<bool> submitReport({
+    String? serviceId,
     required String emergencyType,
     required String description,
     required String latitude,
@@ -47,6 +48,7 @@ class EmergencyReportController extends ChangeNotifier {
 
       await emergencyReportRepository.createReport(
         CreateEmergencyReportRequestModel(
+          serviceId: serviceId,
           emergencyType: emergencyType,
           description: description,
           latitude: latitude,
@@ -120,8 +122,9 @@ class EmergencyReportController extends ChangeNotifier {
 
       errorMessage = null;
 
-      selectedReport =
-          await emergencyReportRepository.getReportDetail(reportId);
+      selectedReport = await emergencyReportRepository.getReportDetail(
+        reportId,
+      );
 
       return true;
     } on AppException catch (error) {
@@ -150,8 +153,9 @@ class EmergencyReportController extends ChangeNotifier {
 
       errorMessage = null;
 
-      dispatches =
-          await emergencyReportRepository.getDispatchByReport(reportId);
+      dispatches = await emergencyReportRepository.getDispatchByReport(
+        reportId,
+      );
 
       return true;
     } on AppException catch (error) {

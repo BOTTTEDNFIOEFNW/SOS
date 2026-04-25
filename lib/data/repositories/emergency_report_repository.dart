@@ -36,7 +36,8 @@ class EmergencyReportRepository {
   }
 
   Future<OfficerLocationModel?> getLatestOfficerLocation(
-      String reportId) async {
+    String reportId,
+  ) async {
     return emergencyReportApiService.getLatestOfficerLocation(reportId);
   }
 }

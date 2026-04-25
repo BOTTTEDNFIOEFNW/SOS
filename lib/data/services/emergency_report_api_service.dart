@@ -20,6 +20,8 @@ class EmergencyReportApiService {
       final fileName = request.photo.path.split('/').last;
 
       final formData = FormData.fromMap({
+        if (request.serviceId != null && request.serviceId!.trim().isNotEmpty)
+          'serviceId': request.serviceId,
         'emergencyType': request.emergencyType,
         'description': request.description,
         'latitude': request.latitude,
@@ -41,6 +43,7 @@ class EmergencyReportApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -63,9 +66,11 @@ class EmergencyReportApiService {
       final rawMeta = response.data['meta'] as Map<String, dynamic>? ?? {};
 
       final items = rawData
-          .map((item) => EmergencyReportModel.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ))
+          .map(
+            (item) => EmergencyReportModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
           .toList();
 
       final meta = PaginationMetaModel.fromJson(rawMeta);
@@ -75,6 +80,7 @@ class EmergencyReportApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -85,14 +91,16 @@ class EmergencyReportApiService {
         '${ApiConstants.emergencyReport}/$reportId',
       );
 
-      final rawData =
-          Map<String, dynamic>.from(response.data['data'] as Map? ?? {});
+      final rawData = Map<String, dynamic>.from(
+        response.data['data'] as Map? ?? {},
+      );
 
       return EmergencyReportModel.fromJson(rawData);
     } catch (error) {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -106,20 +114,24 @@ class EmergencyReportApiService {
       final rawData = response.data['data'] as List? ?? [];
 
       return rawData
-          .map((item) => DispatchModel.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ))
+          .map(
+            (item) => DispatchModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
           .toList();
     } catch (error) {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
 
   Future<OfficerLocationModel?> getLatestOfficerLocation(
-      String reportId) async {
+    String reportId,
+  ) async {
     try {
       final response = await dioClient.dio.get(
         '${ApiConstants.officerLocations}/latest/$reportId',
@@ -135,6 +147,7 @@ class EmergencyReportApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
