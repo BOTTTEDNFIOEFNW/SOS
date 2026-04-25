@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_colors.dart';
+
 import '../../../routes/app_routes.dart';
 import '../controller/auth_controller.dart';
 
@@ -21,6 +21,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final passwordController = TextEditingController();
 
   bool obscurePassword = true;
+
+  static const Color buttonGreen = Color(0xFF2D6858);
+  static const Color buttonGold = Color(0xFFA99E0E);
+  static const Color accentSoft = Color(0xFFFFF7D6);
+  static const Color inputGreen = Color(0xFF2D6858);
 
   @override
   void dispose() {
@@ -74,237 +79,360 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void backToLogin() {
+    Navigator.pushReplacementNamed(context, AppRoutes.login);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pushReplacementNamed(context, AppRoutes.login);
-          },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        title: const Text(
-          'Daftar Akun',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/auth/bg-register.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+            ),
           ),
-        ),
-        centerTitle: false,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    _buildFieldLabel('Nama Lengkap'),
-                    TextFormField(
-                      controller: fullNameController,
-                      decoration: const InputDecoration(
-                        hintText: 'Masukkan nama lengkap',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: size.height - MediaQuery.of(context).padding.top,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(34, 96, 34, 34),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        Text(
+                          'Daftar Akun',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.98),
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
                         ),
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) return 'Nama lengkap wajib diisi';
-                        if (text.length < 3 || text.length > 150) {
-                          return 'Nama lengkap harus 3 sampai 150 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('NIK'),
-                    TextFormField(
-                      controller: nikController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: '16 digit NIK',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Buat akun untuk menggunakan layanan darurat Alerta',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
                         ),
-                        prefixIcon: Icon(Icons.badge_outlined),
-                      ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) return 'NIK wajib diisi';
-                        if (text.length < 8 || text.length > 30) {
-                          return 'NIK harus 8 sampai 30 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('No HP'),
-                    TextFormField(
-                      controller: phoneNumberController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        hintText: '08xxxxxxxxxx',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
-                        ),
-                        prefixIcon: Icon(Icons.phone_outlined),
-                      ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) return 'No HP wajib diisi';
-                        if (text.length < 8 || text.length > 20) {
-                          return 'No HP harus 8 sampai 20 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('Alamat'),
-                    TextFormField(
-                      controller: addressController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        hintText: 'Alamat lengkap',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
-                        ),
-                        prefixIcon: Padding(
-                          padding: EdgeInsets.only(bottom: 52),
-                          child: Icon(Icons.location_on_outlined),
-                        ),
-                      ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) return 'Alamat wajib diisi';
-                        if (text.length < 5) {
-                          return 'Alamat minimal 5 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFieldLabel('Password'),
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      decoration: InputDecoration(
-                        hintText: 'Masukkan password',
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(18)),
-                        ),
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              obscurePassword = !obscurePassword;
-                            });
+                        const SizedBox(height: 26),
+                        _RegisterTextField(
+                          controller: fullNameController,
+                          hintText: 'Nama Lengkap',
+                          icon: Icons.person_outline_rounded,
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Nama lengkap wajib diisi';
+                            if (text.length < 3 || text.length > 150) {
+                              return 'Nama lengkap harus 3 sampai 150 karakter';
+                            }
+                            return null;
                           },
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
                         ),
-                      ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) return 'Password wajib diisi';
-                        if (text.length < 8 || text.length > 100) {
-                          return 'Password harus 8 sampai 100 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: authController.isLoading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          elevation: 8,
+                        const SizedBox(height: 14),
+                        _RegisterTextField(
+                          controller: nikController,
+                          hintText: 'NIK',
+                          icon: Icons.badge_outlined,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'NIK wajib diisi';
+                            if (text.length < 8 || text.length > 30) {
+                              return 'NIK harus 8 sampai 30 karakter';
+                            }
+                            return null;
+                          },
                         ),
-                        child: authController.isLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                        const SizedBox(height: 14),
+                        _RegisterTextField(
+                          controller: phoneNumberController,
+                          hintText: 'No HP',
+                          icon: Icons.phone_iphone_rounded,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'No HP wajib diisi';
+                            if (text.length < 8 || text.length > 20) {
+                              return 'No HP harus 8 sampai 20 karakter';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _RegisterTextField(
+                          controller: addressController,
+                          hintText: 'Alamat Lengkap',
+                          icon: Icons.location_on_outlined,
+                          maxLines: 3,
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Alamat wajib diisi';
+                            if (text.length < 5) {
+                              return 'Alamat minimal 5 karakter';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _RegisterTextField(
+                          controller: passwordController,
+                          hintText: 'Password',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: obscurePassword,
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: inputGreen,
+                            ),
+                          ),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Password wajib diisi';
+                            if (text.length < 8 || text.length > 100) {
+                              return 'Password harus 8 sampai 100 karakter';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 26),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 58,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  buttonGreen,
+                                  buttonGold,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
                                 ),
-                              )
-                            : const Text(
-                                'Daftar',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed:
+                                  authController.isLoading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
                                 ),
                               ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Sudah punya akun? ',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushReplacementNamed(
-                              context,
-                              AppRoutes.login,
-                            );
-                          },
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                              child: authController.isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.4,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'DAFTAR',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.4,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Sudah punya akun? ',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.72),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: backToLogin,
+                              child: const Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Color(0xFFFFC928),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 28),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: backToLogin,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildFieldLabel(String text) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
+class _RegisterTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final int maxLines;
+  final Widget? suffixIcon;
+  final String? Function(String?)? validator;
+
+  const _RegisterTextField({
+    required this.controller,
+    required this.hintText,
+    required this.icon,
+    this.keyboardType,
+    this.obscureText = false,
+    this.maxLines = 1,
+    this.suffixIcon,
+    this.validator,
+  });
+
+  static const Color accentSoft = Color(0xFFFFF7D6);
+  static const Color inputGreen = Color(0xFF2D6858);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        maxLines: obscureText ? 1 : maxLines,
+        style: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        validator: validator,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Padding(
+            padding: EdgeInsets.only(
+              left: 10,
+              right: 8,
+              bottom: maxLines > 1 ? 54 : 0,
+            ),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: accentSoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
+                color: inputGreen,
+                size: 20,
+              ),
+            ),
+          ),
+          prefixIconConstraints: BoxConstraints(
+            minWidth: 62,
+            minHeight: maxLines > 1 ? 92 : 58,
+          ),
+          suffixIcon: suffixIcon,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: maxLines > 1 ? 18 : 20,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          errorStyle: const TextStyle(
+            color: Color(0xFFFFD6D6),
+            fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
           ),
         ),
       ),
