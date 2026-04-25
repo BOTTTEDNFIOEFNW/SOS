@@ -31,7 +31,7 @@ class EmergencyReportController extends ChangeNotifier {
   OfficerLocationModel? latestOfficerLocation;
   List<DispatchModel> dispatches = [];
 
-  Future<bool> submitReport({
+  Future<EmergencyReportModel?> submitReport({
     String? serviceId,
     required String emergencyType,
     required String description,
@@ -46,7 +46,7 @@ class EmergencyReportController extends ChangeNotifier {
       errorMessage = null;
       notifyListeners();
 
-      await emergencyReportRepository.createReport(
+      final report = await emergencyReportRepository.createReport(
         CreateEmergencyReportRequestModel(
           serviceId: serviceId,
           emergencyType: emergencyType,
@@ -59,13 +59,15 @@ class EmergencyReportController extends ChangeNotifier {
         ),
       );
 
-      return true;
+      selectedReport = report;
+
+      return report;
     } on AppException catch (error) {
       errorMessage = error.message;
-      return false;
+      return null;
     } catch (_) {
       errorMessage = 'Gagal mengirim laporan. Silakan coba lagi.';
-      return false;
+      return null;
     } finally {
       isSubmitting = false;
       notifyListeners();

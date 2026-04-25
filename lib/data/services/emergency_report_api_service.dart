@@ -15,7 +15,9 @@ class EmergencyReportApiService {
 
   EmergencyReportApiService({required this.dioClient});
 
-  Future<void> createReport(CreateEmergencyReportRequestModel request) async {
+  Future<EmergencyReportModel> createReport(
+    CreateEmergencyReportRequestModel request,
+  ) async {
     try {
       final fileName = request.photo.path.split('/').last;
 
@@ -34,11 +36,21 @@ class EmergencyReportApiService {
         ),
       });
 
-      await dioClient.dio.post(
+      final response = await dioClient.dio.post(
         ApiConstants.emergencyReport,
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );
+
+      final rawData = Map<String, dynamic>.from(
+        response.data['data'] as Map? ?? {},
+      );
+
+      final rawReport = rawData['report'] is Map
+          ? Map<String, dynamic>.from(rawData['report'] as Map)
+          : rawData;
+
+      return EmergencyReportModel.fromJson(rawReport);
     } catch (error) {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;

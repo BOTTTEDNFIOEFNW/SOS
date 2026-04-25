@@ -12,6 +12,8 @@ import '../controller/emergency_report_controller.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
+import '../../../routes/app_routes.dart';
+
 class EmergencyReportFormPage extends StatefulWidget {
   final String? serviceId;
   final String? initialEmergencyType;
@@ -184,7 +186,7 @@ class _EmergencyReportFormPageState extends State<EmergencyReportFormPage> {
 
     final controller = context.read<EmergencyReportController>();
 
-    final success = await controller.submitReport(
+    final report = await controller.submitReport(
       serviceId: widget.serviceId,
       emergencyType: selectedEmergencyType,
       description: descriptionController.text.trim(),
@@ -197,50 +199,39 @@ class _EmergencyReportFormPageState extends State<EmergencyReportFormPage> {
 
     if (!mounted) return;
 
-    if (success) {
-      showDialog<void>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'Laporan Terkirim',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: const Text(
-              'Laporan darurat berhasil dikirim. Petugas akan segera memproses laporan Anda.',
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
-    } else {
+    if (report != null && report.id.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(controller.errorMessage ?? 'Gagal mengirim laporan'),
+          content: const Text('Laporan berhasil dikirim'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.danger,
+          backgroundColor: AppColors.primary,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
       );
+
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.reportDetail,
+        arguments: report.id,
+      );
+
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(controller.errorMessage ?? 'Gagal mengirim laporan'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.danger,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+    );
   }
 
   Future<void> _fillCurrentLocation() async {

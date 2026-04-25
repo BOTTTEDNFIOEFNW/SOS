@@ -12,8 +12,10 @@ class EmergencyReportRepository {
     required this.emergencyReportApiService,
   });
 
-  Future<void> createReport(CreateEmergencyReportRequestModel request) async {
-    await emergencyReportApiService.createReport(request);
+  Future<EmergencyReportModel> createReport(
+    CreateEmergencyReportRequestModel request,
+  ) async {
+    return emergencyReportApiService.createReport(request);
   }
 
   Future<({List<EmergencyReportModel> items, PaginationMetaModel meta})>
