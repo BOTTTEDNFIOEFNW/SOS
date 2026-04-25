@@ -1,6 +1,6 @@
 name: sos
 description: Aplikasi SOS Emergency
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -11,9 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  
   cupertino_icons: ^1.0.6
-
 
   geolocator: ^14.0.2
   dio: ^5.9.2
@@ -37,8 +35,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  
   assets:
     - assets/images/logo.png
     - assets/images/2.png
     - .env
+    - assets/images/auth/bg-forget-password-phone.png
+    - assets/images/auth/bg-verify-otp.png
+    - assets/images/auth/bg-reset-password.png
+    - assets/images/auth/bg-register.png
