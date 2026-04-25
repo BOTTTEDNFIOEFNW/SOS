@@ -43,3 +43,5 @@ flutter:
     - assets/images/auth/bg-verify-otp.png
     - assets/images/auth/bg-reset-password.png
     - assets/images/auth/bg-register.png
+    - assets/images/dashboard/home-page.png
+    - assets/images/dashboard/loc-component.png
