@@ -22,4 +22,6 @@ class ApiConstants {
   static const String emergencyReport = '/emergency-reports';
   static const String dispatch = '/dispatches';
   static const String officerLocations = '/officer-locations';
+
+  static const String officerMeStatus = '/officers/me/status';
 }

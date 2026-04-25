@@ -109,4 +109,21 @@ class OfficerDispatchApiService {
       throw DioErrorHandler.handle(error);
     }
   }
+
+  Future<void> updateOfficerStatus(String status) async {
+    try {
+      await dioClient.dio.patch(
+        ApiConstants.officerMeStatus,
+        data: {
+          'status': status,
+        },
+      );
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
 }

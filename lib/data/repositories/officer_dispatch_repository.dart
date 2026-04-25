@@ -43,4 +43,8 @@ class OfficerDispatchRepository {
       notes: notes,
     );
   }
+
+  Future<void> updateOfficerStatus(String status) {
+    return officerDispatchApiService.updateOfficerStatus(status);
+  }
 }
