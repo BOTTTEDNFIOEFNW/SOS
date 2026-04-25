@@ -188,6 +188,10 @@ class _TrackingPageState extends State<TrackingPage> {
       );
 
       if (officerLocation != null) {
+        _currentOfficerPosition = officerLocation;
+      }
+
+      if (officerLocation != null) {
         await _loadRealRoute(
           from: officerLocation,
           to: userLocation,
