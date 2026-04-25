@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sos/services/location_service.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -25,13 +24,13 @@ class _ServiceActionCard extends StatelessWidget {
     final hex = service.colorHex;
 
     if (hex == null || hex.isEmpty) {
-      return const Color(0xFF3B82F6);
+      return const Color(0xFFFFC928);
     }
 
     final cleaned = hex.replaceAll('#', '');
 
     if (cleaned.length != 6) {
-      return const Color(0xFF3B82F6);
+      return const Color(0xFFFFC928);
     }
 
     return Color(int.parse('FF$cleaned', radix: 16));
@@ -41,31 +40,15 @@ class _ServiceActionCard extends StatelessWidget {
     final iconName = (service.iconName ?? '').toLowerCase().trim();
     final code = service.serviceCode.toUpperCase();
 
-    if (iconName.contains('ambulance')) {
-      return Icons.local_hospital_rounded;
-    }
-
-    if (iconName.contains('fire')) {
-      return Icons.local_fire_department_rounded;
-    }
-
+    if (iconName.contains('ambulance')) return Icons.local_hospital_rounded;
+    if (iconName.contains('fire')) return Icons.local_fire_department_rounded;
     if (iconName.contains('police') || iconName.contains('shield')) {
       return Icons.shield_outlined;
     }
+    if (iconName.contains('hospital')) return Icons.medical_services_outlined;
+    if (iconName.contains('sos')) return Icons.sos;
+    if (iconName.contains('emergency')) return Icons.emergency_rounded;
 
-    if (iconName.contains('hospital')) {
-      return Icons.medical_services_outlined;
-    }
-
-    if (iconName.contains('sos')) {
-      return Icons.sos;
-    }
-
-    if (iconName.contains('emergency')) {
-      return Icons.emergency_rounded;
-    }
-
-    // fallback dari serviceCode kalau iconName kosong / tidak cocok
     if (code.contains('AMBULANCE')) return Icons.local_hospital_rounded;
     if (code.contains('FIRE')) return Icons.local_fire_department_rounded;
     if (code.contains('POLICE') || code.contains('CRIME')) {
@@ -83,17 +66,19 @@ class _ServiceActionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 140,
-        padding: const EdgeInsets.all(18),
+        height: 142,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.10),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -103,29 +88,31 @@ class _ServiceActionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 52,
-                height: 52,
-                padding: const EdgeInsets.all(11),
+                width: 66,
+                height: 66,
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: serviceColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
+                  color: serviceColor.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: iconUrl.isNotEmpty
                     ? Image.network(
                         iconUrl,
                         fit: BoxFit.contain,
+                        width: 54,
+                        height: 54,
                         errorBuilder: (_, __, ___) {
                           return Icon(
                             iconFromDatabase,
-                            color: serviceColor,
-                            size: 28,
+                            color: Colors.white,
+                            size: 38,
                           );
                         },
                       )
                     : Icon(
                         iconFromDatabase,
-                        color: serviceColor,
-                        size: 28,
+                        color: Colors.white,
+                        size: 38,
                       ),
               ),
               const Spacer(),
@@ -134,9 +121,10 @@ class _ServiceActionCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -160,7 +148,9 @@ class _DynamicServicesGrid extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
         ),
       );
     }
@@ -169,29 +159,37 @@ class _DynamicServicesGrid extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.10),
+          ),
         ),
         child: Row(
           children: [
             const Icon(
               Icons.warning_amber_rounded,
-              color: AppColors.danger,
+              color: Color(0xFFFFC928),
             ),
             const SizedBox(width: 10),
             const Expanded(
               child: Text(
                 'Gagal memuat layanan',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             TextButton(
               onPressed: controller.fetchActiveServices,
-              child: const Text('Coba Lagi'),
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(
+                  color: Color(0xFFFFC928),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
         ),
@@ -202,14 +200,17 @@ class _DynamicServicesGrid extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.10),
+          ),
         ),
-        child: const Text(
+        child: Text(
           'Belum ada layanan aktif',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: Colors.white.withValues(alpha: 0.80),
+            fontWeight: FontWeight.w600,
           ),
         ),
       );
@@ -286,64 +287,74 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
         : 'Pengguna';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _UserDashboardHeader(
-              userName: userName,
-              onLogoutTap: () async {
-                await showLogoutConfirmation(
-                  context,
-                  () async {
-                    await authController.logout();
-                    if (!context.mounted) return;
-                    Navigator.pushReplacementNamed(context, AppRoutes.login);
-                  },
-                );
-              },
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/dashboard/home-page.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  await context.read<ServiceController>().fetchActiveServices();
-                },
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _UserLocationCard(),
-                      const SizedBox(height: 24),
-                      const _SectionTitle(title: 'Layanan Cepat'),
-                      const SizedBox(height: 14),
-                      _DynamicServicesGrid(
-                        controller: serviceController,
-                      ),
-                      const SizedBox(height: 14),
-                      _WideActionCard(
-                        title: 'Riwayat Laporan',
-                        subtitle: 'Lihat status dan detail laporan Anda',
-                        icon: Icons.receipt_long_outlined,
-                        iconColor: const Color(0xFFA855F7),
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.reportHistory,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      const _SectionTitle(title: 'Akun'),
-                      const SizedBox(height: 14),
-                      const _VerificationCard(),
-                    ],
-                  ),
+          ),
+          SafeArea(
+            child: RefreshIndicator(
+              color: const Color(0xFF2D6858),
+              backgroundColor: const Color(0xFFF4BB00),
+              onRefresh: () async {
+                await context.read<ServiceController>().fetchActiveServices();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 34),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _UserDashboardHeader(
+                      userName: userName,
+                      onLogoutTap: () async {
+                        await showLogoutConfirmation(
+                          context,
+                          () async {
+                            await authController.logout();
+                            if (!context.mounted) return;
+                            Navigator.pushReplacementNamed(
+                              context,
+                              AppRoutes.login,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 28),
+                    const _UserLocationCard(),
+                    const SizedBox(height: 18),
+                    const _SectionTitle(title: 'Layanan Cepat'),
+                    const SizedBox(height: 12),
+                    _DynamicServicesGrid(
+                      controller: serviceController,
+                    ),
+                    const SizedBox(height: 16),
+                    _WideActionCard(
+                      title: 'Riwayat Laporan',
+                      subtitle: 'Lihat status dan detail laporan Anda',
+                      icon: Icons.receipt_long_outlined,
+                      iconColor: const Color(0xFF2D6858),
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.reportHistory,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    const _VerificationCard(),
+                    const SizedBox(height: 26),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -360,59 +371,53 @@ class _UserDashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border),
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selamat Datang',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                userName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Selamat Datang',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  userName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onLogoutTap,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF4FF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.logout_rounded,
-                color: AppColors.primary,
+        GestureDetector(
+          onTap: onLogoutTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
               ),
             ),
+            child: const Icon(
+              Icons.logout_rounded,
+              color: Colors.white,
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -458,24 +463,34 @@ class _UserLocationCardState extends State<_UserLocationCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      constraints: const BoxConstraints(
+        minHeight: 98,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF2563EB),
-            Color(0xFF1D4ED8),
-          ],
-        ),
         borderRadius: BorderRadius.circular(24),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/dashboard/loc-component.png'),
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.white24,
-            child: Icon(
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white.withValues(alpha: 0.20),
+            child: const Icon(
               Icons.location_on_outlined,
               color: Colors.white,
+              size: 27,
             ),
           ),
           const SizedBox(width: 14),
@@ -483,20 +498,24 @@ class _UserLocationCardState extends State<_UserLocationCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Lokasi Aktif',
                   style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   locationText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -504,8 +523,8 @@ class _UserLocationCardState extends State<_UserLocationCard> {
           ),
           isLoading
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
                     color: Colors.white,
                     strokeWidth: 2,
@@ -514,141 +533,12 @@ class _UserLocationCardState extends State<_UserLocationCard> {
               : IconButton(
                   onPressed: _loadLocation,
                   icon: const Icon(
-                    Icons.refresh,
-                    color: Color(0xFF86EFAC),
+                    Icons.refresh_rounded,
+                    color: Color(0xFFFFC928),
+                    size: 25,
                   ),
                 ),
         ],
-      ),
-    );
-  }
-}
-
-class _UserSOSCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _UserSOSCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 220,
-          height: 220,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const RadialGradient(
-              colors: [
-                Color(0xFFFF5A5F),
-                Color(0xFFEF4444),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.danger.withValues(alpha: 0.35),
-                blurRadius: 30,
-                spreadRadius: 8,
-              ),
-            ],
-          ),
-          // child: const Column(
-          //   mainAxisAlignment: MainAxisAlignment.center,
-          //   children: [
-          //     Icon(
-          //       Icons.sos,
-          //       color: Colors.white,
-          //       size: 44,
-          //     ),
-          //     SizedBox(height: 8),
-          //     Text(
-          //       'SOS',
-          //       style: TextStyle(
-          //         color: Colors.white,
-          //         fontSize: 42,
-          //         fontWeight: FontWeight.bold,
-          //       ),
-          //     ),
-          //     SizedBox(height: 10),
-          //     Padding(
-          //       padding: EdgeInsets.symmetric(horizontal: 24),
-          //       child: Text(
-          //         'Tekan untuk bantuan darurat',
-          //         textAlign: TextAlign.center,
-          //         style: TextStyle(
-          //           color: Colors.white,
-          //           fontSize: 15,
-          //           fontWeight: FontWeight.w600,
-          //         ),
-          //       ),
-          //     ),
-          //   ],
-          // ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color iconColor;
-  final VoidCallback? onTap;
-
-  const _ActionCard({
-    required this.title,
-    required this.icon,
-    required this.iconColor,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 140,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(icon, color: iconColor, size: 28),
-              ),
-              const Spacer(),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -676,9 +566,15 @@ class _WideActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
+          color: const Color(0xFFF4BB00),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -686,10 +582,14 @@ class _WideActionCard extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
+                color: const Color(0xFF2D6858).withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(icon, color: iconColor, size: 28),
+              child: Icon(
+                icon,
+                color: const Color(0xFF2D6858),
+                size: 28,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -699,17 +599,18 @@ class _WideActionCard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF173B2D),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: const Color(0xFF173B2D).withValues(alpha: 0.72),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -717,66 +618,10 @@ class _WideActionCard extends StatelessWidget {
             ),
             const Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
+              color: Color(0xFF173B2D),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LatestReportCard extends StatelessWidget {
-  const _LatestReportCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'EMG-20260413-001',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Status laporan Anda saat ini sedang diproses oleh petugas.',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              _StatusBadge(
-                text: 'ON THE WAY',
-                bgColor: Color(0xFFDBEAFE),
-                textColor: Color(0xFF1D4ED8),
-              ),
-              Spacer(),
-              Text(
-                '2 menit lalu',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -790,21 +635,35 @@ class _VerificationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Color(0xFFDCFCE7),
-            child: Icon(
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDCFCE7).withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
               Icons.verified_rounded,
-              color: AppColors.success,
+              color: Color(0xFF16A34A),
+              size: 28,
             ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -812,54 +671,29 @@ class _VerificationCard extends StatelessWidget {
                 Text(
                   'Status Akun',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.68),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'Terverifikasi',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
           ),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF86EFAC),
+            size: 24,
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String text;
-  final Color bgColor;
-  final Color textColor;
-
-  const _StatusBadge({
-    required this.text,
-    required this.bgColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          color: textColor,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }
@@ -875,9 +709,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        color: AppColors.textPrimary,
+        color: Colors.white,
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
