@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/dialog_utils.dart';
+import '../../../data/models/report/available_report_model.dart';
 import '../../../data/models/report/dispatch_model.dart';
 import '../../../routes/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -21,8 +22,28 @@ class OfficerDashboardPage extends StatefulWidget {
 class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   static const Color yellow = Color(0xFFF4BB00);
   static const Color softGreen = Color(0xFF2D6858);
+
   final SocketService _socketService = SocketService();
+
   bool _isRealtimeRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final dispatchController = context.read<OfficerDispatchController>();
+
+      await dispatchController.fetchAvailableReports();
+      await dispatchController.fetchDispatches();
+
+      if (!mounted) return;
+
+      _setupSocket();
+    });
+  }
 
   @override
   void dispose() {
@@ -31,9 +52,130 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     _socketService.off('dispatch:updated');
     _socketService.off('dispatch:created');
     _socketService.off('dispatch:assigned');
+    _socketService.off('report:available');
+    _socketService.off('report:taken');
+    _socketService.off('dispatch:accepted');
     _socketService.disconnect();
 
     super.dispose();
+  }
+
+  void _setupSocket() {
+    final authController = context.read<AuthController>();
+    final token = authController.accessToken;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('Officer socket skipped: token not found');
+      return;
+    }
+
+    _socketService.connect(
+      baseUrl: ApiConstants.socketBaseUrl,
+      token: token,
+    );
+
+    _socketService.on('connect', (_) {
+      debugPrint('Officer dashboard socket connected');
+    });
+
+    _socketService.on('connect_error', (error) {
+      debugPrint('Officer dashboard socket error: $error');
+    });
+
+    _socketService.on('dispatch:updated', (data) async {
+      debugPrint('Officer dispatch:updated => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch diperbarui',
+      );
+    });
+
+    _socketService.on('dispatch:created', (data) async {
+      debugPrint('Officer dispatch:created => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch baru masuk',
+      );
+    });
+
+    _socketService.on('dispatch:assigned', (data) async {
+      debugPrint('Officer dispatch:assigned => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch baru ditugaskan',
+      );
+    });
+
+    _socketService.on('report:available', (data) async {
+      debugPrint('Officer report:available => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Laporan baru tersedia',
+      );
+    });
+
+    _socketService.on('report:taken', (data) async {
+      debugPrint('Officer report:taken => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Laporan sudah diambil petugas lain',
+      );
+    });
+
+    _socketService.on('dispatch:accepted', (data) async {
+      debugPrint('Officer dispatch:accepted => $data');
+
+      await _refreshDispatchRealtime(
+        showToast: true,
+        message: 'Dispatch berhasil diterima',
+      );
+    });
+  }
+
+  Future<void> _refreshDispatchRealtime({
+    bool showToast = false,
+    String message = 'Dispatch diperbarui',
+  }) async {
+    if (_isRealtimeRefreshing) return;
+
+    _isRealtimeRefreshing = true;
+
+    try {
+      final dispatchController = context.read<OfficerDispatchController>();
+
+      await dispatchController.fetchAvailableReports();
+      await dispatchController.fetchDispatches();
+
+      if (!mounted) return;
+
+      if (showToast) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      _isRealtimeRefreshing = false;
+    }
+  }
+
+  Future<void> _refresh() async {
+    if (!mounted) return;
+
+    final controller = context.read<OfficerDispatchController>();
+
+    await controller.fetchAvailableReports();
+    await controller.fetchDispatches();
+
+    if (!mounted) return;
   }
 
   List<DispatchModel> _visibleDispatches(List<DispatchModel> items) {
@@ -84,92 +226,35 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     return filtered;
   }
 
-  @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-
-      await context.read<OfficerDispatchController>().fetchDispatches();
-
-      if (!mounted) return;
-
-      _setupSocket();
-    });
+  int _activeDispatchCount(List<DispatchModel> dispatches) {
+    return dispatches
+        .where(
+          (item) => ![
+            'COMPLETED',
+            'CANCELLED',
+          ].contains(item.dispatchStatus.toUpperCase()),
+        )
+        .length;
   }
 
-  void _setupSocket() {
-    final authController = context.read<AuthController>();
-    final token = authController.accessToken;
-
-    if (token == null || token.isEmpty) {
-      debugPrint('Officer socket skipped: token not found');
-      return;
-    }
-
-    _socketService.connect(
-      baseUrl: ApiConstants.socketBaseUrl,
-      token: token,
-    );
-
-    _socketService.on('connect', (_) {
-      debugPrint('Officer dashboard socket connected');
-    });
-
-    _socketService.on('connect_error', (error) {
-      debugPrint('Officer dashboard socket error: $error');
-    });
-
-    _socketService.on('dispatch:updated', (data) async {
-      debugPrint('Officer dispatch:updated => $data');
-      await _refreshDispatchRealtime(
-        showToast: true,
-        message: 'Dispatch diperbarui',
-      );
-    });
-
-    _socketService.on('dispatch:created', (data) async {
-      debugPrint('Officer dispatch:created => $data');
-      await _refreshDispatchRealtime(
-        showToast: true,
-        message: 'Dispatch baru masuk',
-      );
-    });
-
-    _socketService.on('dispatch:assigned', (data) async {
-      debugPrint('Officer dispatch:assigned => $data');
-      await _refreshDispatchRealtime(
-        showToast: true,
-        message: 'Dispatch baru ditugaskan',
-      );
-    });
-  }
-
-  Future<void> _refreshDispatchRealtime({
-    bool showToast = false,
-    String message = 'Dispatch diperbarui',
-  }) async {
-    if (_isRealtimeRefreshing) return;
-
-    _isRealtimeRefreshing = true;
-
-    try {
-      await context.read<OfficerDispatchController>().fetchDispatches();
-
-      if (!mounted) return;
-
-      if (showToast) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } finally {
-      _isRealtimeRefreshing = false;
+  ({Color bg, Color text}) _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'ASSIGNED':
+        return (bg: const Color(0xFFFFEDD5), text: const Color(0xFFEA580C));
+      case 'ACCEPTED':
+        return (bg: const Color(0xFFE0F2FE), text: const Color(0xFF0284C7));
+      case 'ON_THE_WAY':
+        return (bg: const Color(0xFFDBEAFE), text: const Color(0xFF2563EB));
+      case 'ARRIVED':
+        return (bg: const Color(0xFFDCFCE7), text: const Color(0xFF16A34A));
+      case 'HANDLING':
+        return (bg: const Color(0xFFFEF3C7), text: const Color(0xFFD97706));
+      case 'COMPLETED':
+        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
+      case 'CANCELLED':
+        return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
+      default:
+        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
     }
   }
 
@@ -215,6 +300,90 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Tidak bisa membuka Google Maps'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleAcceptAvailableReport(AvailableReportModel report) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.acceptAvailableReport(report.id);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Laporan berhasil diterima'
+              : (dispatchController.errorMessage ?? 'Gagal menerima laporan'),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleAccept(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.acceptDispatch(dispatch.id);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch berhasil diterima'
+              : (dispatchController.errorMessage ?? 'Gagal menerima dispatch'),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleStart(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+    final locationController = context.read<OfficerLocationController>();
+
+    final success = await dispatchController.startDispatch(dispatch.id);
+
+    if (success) {
+      await locationController.startLiveTracking(
+        reportId: dispatch.reportId,
+        interval: const Duration(seconds: 10),
+      );
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Dispatch dimulai, live tracking aktif'
+              : (dispatchController.errorMessage ?? 'Gagal memulai dispatch'),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleArrive(DispatchModel dispatch) async {
+    final dispatchController = context.read<OfficerDispatchController>();
+
+    final success = await dispatchController.arriveDispatch(dispatch.id);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Status tiba di lokasi berhasil diperbarui'
+              : (dispatchController.errorMessage ?? 'Gagal update arrival'),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -533,111 +702,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     );
   }
 
-  Future<void> _refresh() async {
-    if (!mounted) return;
-
-    final controller = context.read<OfficerDispatchController>();
-
-    await controller.fetchDispatches();
-
-    if (!mounted) return;
-  }
-
-  ({Color bg, Color text}) _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'ASSIGNED':
-        return (bg: const Color(0xFFFFEDD5), text: const Color(0xFFEA580C));
-      case 'ACCEPTED':
-        return (bg: const Color(0xFFE0F2FE), text: const Color(0xFF0284C7));
-      case 'ON_THE_WAY':
-        return (bg: const Color(0xFFDBEAFE), text: const Color(0xFF2563EB));
-      case 'ARRIVED':
-        return (bg: const Color(0xFFDCFCE7), text: const Color(0xFF16A34A));
-      case 'HANDLING':
-        return (bg: const Color(0xFFFEF3C7), text: const Color(0xFFD97706));
-      case 'COMPLETED':
-        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
-      case 'CANCELLED':
-        return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
-      default:
-        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
-    }
-  }
-
-  Future<void> _handleAccept(DispatchModel dispatch) async {
-    final dispatchController = context.read<OfficerDispatchController>();
-    final success = await dispatchController.acceptDispatch(dispatch.id);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Dispatch berhasil diterima'
-              : (dispatchController.errorMessage ?? 'Gagal menerima dispatch'),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _handleStart(DispatchModel dispatch) async {
-    final dispatchController = context.read<OfficerDispatchController>();
-    final locationController = context.read<OfficerLocationController>();
-
-    final success = await dispatchController.startDispatch(dispatch.id);
-
-    if (success) {
-      await locationController.startLiveTracking(
-        reportId: dispatch.reportId,
-        interval: const Duration(seconds: 10),
-      );
-    }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Dispatch dimulai, live tracking aktif'
-              : (dispatchController.errorMessage ?? 'Gagal memulai dispatch'),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _handleArrive(DispatchModel dispatch) async {
-    final dispatchController = context.read<OfficerDispatchController>();
-    final success = await dispatchController.arriveDispatch(dispatch.id);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Status tiba di lokasi berhasil diperbarui'
-              : (dispatchController.errorMessage ?? 'Gagal update arrival'),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  int _activeDispatchCount(List<DispatchModel> dispatches) {
-    return dispatches
-        .where(
-          (item) => ![
-            'COMPLETED',
-            'CANCELLED',
-          ].contains(item.dispatchStatus.toUpperCase()),
-        )
-        .length;
-  }
-
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
@@ -648,6 +712,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         ? authController.currentUser!.fullName
         : 'Officer';
 
+    final visibleDispatches = _visibleDispatches(dispatchController.dispatches);
     final activeCount = _activeDispatchCount(dispatchController.dispatches);
 
     return Scaffold(
@@ -692,6 +757,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                   _OfficerSummaryCard(
                     activeDispatchCount: activeCount,
                     totalDispatchCount: dispatchController.dispatches.length,
+                    availableReportCount:
+                        dispatchController.availableReports.length,
                     isSharingLocation: locationController.isSharingLocation,
                   ),
                   const SizedBox(height: 16),
@@ -704,9 +771,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
                       final success = await context
                           .read<OfficerDispatchController>()
-                          .updateOfficerStatus(
-                            newStatus,
-                          );
+                          .updateOfficerStatus(newStatus);
 
                       if (!context.mounted) return;
 
@@ -731,23 +796,55 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     errorMessage: locationController.errorMessage,
                   ),
                   const SizedBox(height: 20),
-                  const _SectionTitle(title: 'Dispatch Masuk'),
+                  const _SectionTitle(title: 'Laporan Tersedia'),
                   const SizedBox(height: 12),
-                  if (dispatchController.isLoading &&
-                      dispatchController.dispatches.isEmpty)
+                  if (dispatchController.isAvailableReportsLoading &&
+                      dispatchController.availableReports.isEmpty)
                     const _LoadingCard()
                   else if (dispatchController.errorMessage != null &&
+                      dispatchController.availableReports.isEmpty &&
                       dispatchController.dispatches.isEmpty)
                     _ErrorCard(
                       message: dispatchController.errorMessage!,
                       onRetry: _refresh,
                     )
-                  else if (_visibleDispatches(dispatchController.dispatches)
-                      .isEmpty)
+                  else if (dispatchController.availableReports.isEmpty)
+                    const _EmptyAvailableReportCard()
+                  else
+                    ...dispatchController.availableReports.map((report) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _AvailableReportCard(
+                          report: report,
+                          isActionLoading: dispatchController.isActionLoading,
+                          onDetail: () {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.reportDetail,
+                              arguments: report.id,
+                            );
+                          },
+                          onAccept: () => _handleAcceptAvailableReport(report),
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 20),
+                  const _SectionTitle(title: 'Dispatch Aktif'),
+                  const SizedBox(height: 12),
+                  if (dispatchController.isLoading &&
+                      dispatchController.dispatches.isEmpty)
+                    const _LoadingCard()
+                  else if (dispatchController.errorMessage != null &&
+                      dispatchController.dispatches.isEmpty &&
+                      dispatchController.availableReports.isEmpty)
+                    _ErrorCard(
+                      message: dispatchController.errorMessage!,
+                      onRetry: _refresh,
+                    )
+                  else if (visibleDispatches.isEmpty)
                     const _EmptyDispatchCard()
                   else
-                    ..._visibleDispatches(dispatchController.dispatches)
-                        .map((dispatch) {
+                    ...visibleDispatches.map((dispatch) {
                       final style = _statusColor(dispatch.dispatchStatus);
 
                       return Padding(
@@ -842,11 +939,13 @@ class _OfficerHeader extends StatelessWidget {
 class _OfficerSummaryCard extends StatelessWidget {
   final int activeDispatchCount;
   final int totalDispatchCount;
+  final int availableReportCount;
   final bool isSharingLocation;
 
   const _OfficerSummaryCard({
     required this.activeDispatchCount,
     required this.totalDispatchCount,
+    required this.availableReportCount,
     required this.isSharingLocation,
   });
 
@@ -871,6 +970,17 @@ class _OfficerSummaryCard extends StatelessWidget {
       child: Row(
         children: [
           _SummaryItem(
+            label: 'Tersedia',
+            value: availableReportCount.toString(),
+            icon: Icons.assignment_turned_in_outlined,
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            color: Colors.white.withValues(alpha: 0.14),
+          ),
+          _SummaryItem(
             label: 'Aktif',
             value: activeDispatchCount.toString(),
             icon: Icons.local_shipping_outlined,
@@ -878,18 +988,7 @@ class _OfficerSummaryCard extends StatelessWidget {
           Container(
             width: 1,
             height: 50,
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            color: Colors.white.withValues(alpha: 0.14),
-          ),
-          _SummaryItem(
-            label: 'Total',
-            value: totalDispatchCount.toString(),
-            icon: Icons.assignment_outlined,
-          ),
-          Container(
-            width: 1,
-            height: 50,
-            margin: const EdgeInsets.symmetric(horizontal: 14),
+            margin: const EdgeInsets.symmetric(horizontal: 10),
             color: Colors.white.withValues(alpha: 0.14),
           ),
           _SummaryItem(
@@ -971,7 +1070,7 @@ class _OfficerAvailabilityCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isAvailable ? 'Available for Dispatch' : 'Offline',
+                  isAvailable ? 'Available for Reports' : 'Offline',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
@@ -1159,6 +1258,206 @@ class _DutyStatusCard extends StatelessWidget {
   }
 }
 
+class _AvailableReportCard extends StatelessWidget {
+  final AvailableReportModel report;
+  final bool isActionLoading;
+  final VoidCallback onAccept;
+  final VoidCallback onDetail;
+
+  const _AvailableReportCard({
+    required this.report,
+    required this.isActionLoading,
+    required this.onAccept,
+    required this.onDetail,
+  });
+
+  String _formatText(String value) {
+    return value.replaceAll('_', ' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final address = report.addressSnapshot?.trim().isNotEmpty == true
+        ? report.addressSnapshot!
+        : 'Alamat tidak tersedia';
+
+    final description = report.description?.trim().isNotEmpty == true
+        ? report.description!
+        : 'Tidak ada deskripsi';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: const Color(0xFFF4BB00).withValues(alpha: 0.38),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4BB00).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.notification_important_outlined,
+                  color: Color(0xFFB77900),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      report.reportCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF173B2D),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatText(report.serviceName),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFF173B2D).withValues(alpha: 0.70),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _formatText(report.status),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF9333EA),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      color: Color(0xFF2D6858),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        address,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.notes_rounded,
+                      color: Color(0xFF2D6858),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniActionButton(
+                  label: 'Detail',
+                  icon: Icons.description_outlined,
+                  onTap: onDetail,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ActionButton(
+                  label: 'Terima',
+                  icon: Icons.check_circle_outline_rounded,
+                  onPressed: isActionLoading ? null : onAccept,
+                  bgColor: const Color(0xFFF4BB00),
+                  textColor: const Color(0xFF173B2D),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DispatchActionCard extends StatelessWidget {
   final DispatchModel dispatch;
   final Color statusBg;
@@ -1172,18 +1471,19 @@ class _DispatchActionCard extends StatelessWidget {
   final VoidCallback onNavigate;
   final VoidCallback onReject;
 
-  const _DispatchActionCard(
-      {required this.dispatch,
-      required this.statusBg,
-      required this.statusText,
-      required this.isActionLoading,
-      required this.onAccept,
-      required this.onStart,
-      required this.onDetail,
-      required this.onNavigate,
-      required this.onArrive,
-      required this.onComplete,
-      required this.onReject});
+  const _DispatchActionCard({
+    required this.dispatch,
+    required this.statusBg,
+    required this.statusText,
+    required this.isActionLoading,
+    required this.onAccept,
+    required this.onStart,
+    required this.onDetail,
+    required this.onNavigate,
+    required this.onArrive,
+    required this.onComplete,
+    required this.onReject,
+  });
 
   String _formatText(String value) {
     return value.replaceAll('_', ' ');
@@ -1575,6 +1875,61 @@ class _ErrorCard extends StatelessWidget {
   }
 }
 
+class _EmptyAvailableReportCard extends StatelessWidget {
+  const _EmptyAvailableReportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 26),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4BB00).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in_outlined,
+              size: 34,
+              color: Color(0xFFF4BB00),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Belum Ada Laporan Tersedia',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Laporan baru akan muncul di sini kalau service-nya cocok dengan akun officer kamu.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.72),
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyDispatchCard extends StatelessWidget {
   const _EmptyDispatchCard();
 
@@ -1606,7 +1961,7 @@ class _EmptyDispatchCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const Text(
-            'Belum Ada Dispatch',
+            'Belum Ada Dispatch Aktif',
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w900,
@@ -1615,7 +1970,7 @@ class _EmptyDispatchCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Dispatch baru akan muncul di sini saat admin atau sistem auto assign menugaskan Anda.',
+            'Dispatch aktif akan muncul di sini setelah Anda menerima laporan.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,

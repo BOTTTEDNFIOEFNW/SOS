@@ -4,6 +4,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/app_exception.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/dio_error_handler.dart';
+import '../models/report/available_report_model.dart';
 import '../models/report/dispatch_model.dart';
 
 class OfficerDispatchApiService {
@@ -26,14 +27,59 @@ class OfficerDispatchApiService {
       final rawData = response.data['data'] as List? ?? [];
 
       return rawData
-          .map((item) => DispatchModel.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ))
+          .map(
+            (item) => DispatchModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
           .toList();
     } catch (error) {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<List<AvailableReportModel>> getAvailableReports() async {
+    try {
+      final response = await dioClient.dio.get(
+        ApiConstants.officerAvailableReports,
+        queryParameters: {
+          'page': 1,
+          'limit': 50,
+        },
+      );
+
+      final rawData = response.data['data'] as List? ?? [];
+
+      return rawData
+          .map(
+            (item) => AvailableReportModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList();
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
+      throw DioErrorHandler.handle(error);
+    }
+  }
+
+  Future<void> acceptAvailableReport(String reportId) async {
+    try {
+      await dioClient.dio.patch(
+        ApiConstants.acceptAvailableReport(reportId),
+      );
+    } catch (error) {
+      if (error is DioException && error.error is AppException) {
+        throw error.error as AppException;
+      }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -45,6 +91,7 @@ class OfficerDispatchApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -56,6 +103,7 @@ class OfficerDispatchApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -67,6 +115,7 @@ class OfficerDispatchApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }
@@ -86,6 +135,7 @@ class OfficerDispatchApiService {
       if (error is DioException && error.error is AppException) {
         throw error.error as AppException;
       }
+
       throw DioErrorHandler.handle(error);
     }
   }

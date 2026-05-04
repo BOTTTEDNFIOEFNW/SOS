@@ -1,3 +1,4 @@
+import '../models/report/available_report_model.dart';
 import '../models/report/dispatch_model.dart';
 import '../services/officer_dispatch_api_service.dart';
 
@@ -10,6 +11,14 @@ class OfficerDispatchRepository {
 
   Future<List<DispatchModel>> getAllDispatches() {
     return officerDispatchApiService.getAllDispatches();
+  }
+
+  Future<List<AvailableReportModel>> getAvailableReports() {
+    return officerDispatchApiService.getAvailableReports();
+  }
+
+  Future<void> acceptAvailableReport(String reportId) {
+    return officerDispatchApiService.acceptAvailableReport(reportId);
   }
 
   Future<void> acceptDispatch(String dispatchId) {

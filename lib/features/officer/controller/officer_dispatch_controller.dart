@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/app_exception.dart';
+import '../../../data/models/report/available_report_model.dart';
 import '../../../data/models/report/dispatch_model.dart';
 import '../../../data/repositories/officer_dispatch_repository.dart';
 
@@ -13,8 +14,12 @@ class OfficerDispatchController extends ChangeNotifier {
 
   bool isLoading = false;
   bool isActionLoading = false;
+  bool isAvailableReportsLoading = false;
   String? errorMessage;
+
   List<DispatchModel> dispatches = [];
+  List<AvailableReportModel> availableReports = [];
+
   String officerStatus = 'AVAILABLE';
   bool isStatusLoading = false;
 
@@ -38,6 +43,51 @@ class OfficerDispatchController extends ChangeNotifier {
     }
   }
 
+  Future<bool> fetchAvailableReports() async {
+    try {
+      isAvailableReportsLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      availableReports = await officerDispatchRepository.getAvailableReports();
+
+      return true;
+    } on AppException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } catch (_) {
+      errorMessage = 'Failed to load available reports.';
+      return false;
+    } finally {
+      isAvailableReportsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> acceptAvailableReport(String reportId) async {
+    try {
+      isActionLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      await officerDispatchRepository.acceptAvailableReport(reportId);
+
+      await fetchAvailableReports();
+      await fetchDispatches();
+
+      return true;
+    } on AppException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } catch (_) {
+      errorMessage = 'Failed to accept report.';
+      return false;
+    } finally {
+      isActionLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> acceptDispatch(String dispatchId) async {
     try {
       isActionLoading = true;
@@ -46,6 +96,7 @@ class OfficerDispatchController extends ChangeNotifier {
 
       await officerDispatchRepository.acceptDispatch(dispatchId);
       await fetchDispatches();
+
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -67,6 +118,7 @@ class OfficerDispatchController extends ChangeNotifier {
 
       await officerDispatchRepository.startDispatch(dispatchId);
       await fetchDispatches();
+
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -88,6 +140,7 @@ class OfficerDispatchController extends ChangeNotifier {
 
       await officerDispatchRepository.arriveDispatch(dispatchId);
       await fetchDispatches();
+
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -114,7 +167,9 @@ class OfficerDispatchController extends ChangeNotifier {
         dispatchId: dispatchId,
         notes: notes,
       );
+
       await fetchDispatches();
+
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -143,6 +198,8 @@ class OfficerDispatchController extends ChangeNotifier {
       );
 
       await fetchDispatches();
+      await fetchAvailableReports();
+
       return true;
     } on AppException catch (error) {
       errorMessage = error.message;
@@ -165,6 +222,10 @@ class OfficerDispatchController extends ChangeNotifier {
       await officerDispatchRepository.updateOfficerStatus(status);
 
       officerStatus = status;
+
+      if (status.toUpperCase() == 'AVAILABLE') {
+        await fetchAvailableReports();
+      }
 
       return true;
     } on AppException catch (error) {
