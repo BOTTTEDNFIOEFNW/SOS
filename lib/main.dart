@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/network/dio_client.dart';
 import 'core/storage/secure_storage_service.dart';
+import 'core/navigation/navigation_service.dart';
 
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/emergency_report_repository.dart';
@@ -114,6 +115,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: NavigationService.navigatorKey,
         debugShowCheckedModeBanner: false,
         onGenerateRoute: AppPages.onGenerateRoute,
         initialRoute: AppRoutes.login,

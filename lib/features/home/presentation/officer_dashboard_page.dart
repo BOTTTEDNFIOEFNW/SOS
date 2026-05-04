@@ -36,8 +36,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
       final dispatchController = context.read<OfficerDispatchController>();
 
-      await dispatchController.fetchAvailableReports();
       await dispatchController.fetchDispatches();
+      await dispatchController.fetchAvailableReports();
 
       if (!mounted) return;
 
@@ -148,8 +148,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     try {
       final dispatchController = context.read<OfficerDispatchController>();
 
-      await dispatchController.fetchAvailableReports();
       await dispatchController.fetchDispatches();
+      await dispatchController.fetchAvailableReports();
 
       if (!mounted) return;
 
@@ -172,8 +172,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
     final controller = context.read<OfficerDispatchController>();
 
-    await controller.fetchAvailableReports();
     await controller.fetchDispatches();
+    await controller.fetchAvailableReports();
 
     if (!mounted) return;
   }
@@ -185,6 +185,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       return ![
         'COMPLETED',
         'CANCELLED',
+        'REJECTED',
+        'EXPIRED',
       ].contains(status);
     }).toList();
 
@@ -227,14 +229,17 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   }
 
   int _activeDispatchCount(List<DispatchModel> dispatches) {
-    return dispatches
-        .where(
-          (item) => ![
-            'COMPLETED',
-            'CANCELLED',
-          ].contains(item.dispatchStatus.toUpperCase()),
-        )
-        .length;
+    return dispatches.where((item) {
+      final status = item.dispatchStatus.toUpperCase();
+
+      return [
+        'ASSIGNED',
+        'ACCEPTED',
+        'ON_THE_WAY',
+        'ARRIVED',
+        'HANDLING',
+      ].contains(status);
+    }).length;
   }
 
   ({Color bg, Color text}) _statusColor(String status) {
@@ -253,6 +258,10 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF334155));
       case 'CANCELLED':
         return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
+      case 'REJECTED':
+        return (bg: const Color(0xFFFEE2E2), text: const Color(0xFFDC2626));
+      case 'EXPIRED':
+        return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
       default:
         return (bg: const Color(0xFFE2E8F0), text: const Color(0xFF475569));
     }
@@ -267,10 +276,19 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   }
 
   Future<void> _openNavigation(DispatchModel dispatch) async {
-    final lat = dispatch.report?['latitude']?.toString();
-    final lng = dispatch.report?['longitude']?.toString();
+    final rawLat = dispatch.report?['latitude']?.toString();
+    final rawLng = dispatch.report?['longitude']?.toString();
 
-    if (lat == null || lng == null || lat.isEmpty || lng.isEmpty) {
+    debugPrint('NAVIGATE REPORT DATA => ${dispatch.report}');
+    debugPrint('NAVIGATE LAT => $rawLat');
+    debugPrint('NAVIGATE LNG => $rawLng');
+
+    if (rawLat == null ||
+        rawLng == null ||
+        rawLat.trim().isEmpty ||
+        rawLng.trim().isEmpty ||
+        rawLat == 'null' ||
+        rawLng == 'null') {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,31 +300,74 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       return;
     }
 
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    final lat = rawLat.trim();
+    final lng = rawLng.trim();
+
+    final googleMapsUri = Uri.https(
+      'www.google.com',
+      '/maps/dir/',
+      {
+        'api': '1',
+        'destination': '$lat,$lng',
+        'travelmode': 'driving',
+      },
     );
 
-    final canOpen = await canLaunchUrl(uri);
+    try {
+      final launched = await launchUrl(
+        googleMapsUri,
+        mode: LaunchMode.externalApplication,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return;
+      if (!launched) {
+        final fallbackLaunched = await launchUrl(
+          googleMapsUri,
+          mode: LaunchMode.platformDefault,
+        );
+
+        if (!mounted) return;
+
+        if (!fallbackLaunched) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak bisa membuka aplikasi maps'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      debugPrint('OPEN MAPS ERROR => $error');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuka maps: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tidak bisa membuka Google Maps'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Future<void> _handleAcceptAvailableReport(AvailableReportModel report) async {
     final dispatchController = context.read<OfficerDispatchController>();
+
+    final activeCount = _activeDispatchCount(dispatchController.dispatches);
+
+    if (activeCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selesaikan dispatch aktif terlebih dahulu sebelum menerima laporan baru.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     final success = await dispatchController.acceptAvailableReport(report.id);
 
@@ -714,6 +775,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
     final visibleDispatches = _visibleDispatches(dispatchController.dispatches);
     final activeCount = _activeDispatchCount(dispatchController.dispatches);
+    final hasActiveDispatch = activeCount > 0;
 
     return Scaffold(
       body: Stack(
@@ -757,15 +819,16 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                   _OfficerSummaryCard(
                     activeDispatchCount: activeCount,
                     totalDispatchCount: dispatchController.dispatches.length,
-                    availableReportCount:
-                        dispatchController.availableReports.length,
+                    availableReportCount: hasActiveDispatch
+                        ? 0
+                        : dispatchController.availableReports.length,
                     isSharingLocation: locationController.isSharingLocation,
                   ),
                   const SizedBox(height: 16),
                   _OfficerAvailabilityCard(
                     status: dispatchController.officerStatus,
                     isLoading: dispatchController.isStatusLoading,
-                    hasActiveDispatch: activeCount > 0,
+                    hasActiveDispatch: hasActiveDispatch,
                     onChanged: (value) async {
                       final newStatus = value ? 'AVAILABLE' : 'OFFLINE';
 
@@ -795,39 +858,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     isSharingLocation: locationController.isSharingLocation,
                     errorMessage: locationController.errorMessage,
                   ),
-                  const SizedBox(height: 20),
-                  const _SectionTitle(title: 'Laporan Tersedia'),
-                  const SizedBox(height: 12),
-                  if (dispatchController.isAvailableReportsLoading &&
-                      dispatchController.availableReports.isEmpty)
-                    const _LoadingCard()
-                  else if (dispatchController.errorMessage != null &&
-                      dispatchController.availableReports.isEmpty &&
-                      dispatchController.dispatches.isEmpty)
-                    _ErrorCard(
-                      message: dispatchController.errorMessage!,
-                      onRetry: _refresh,
-                    )
-                  else if (dispatchController.availableReports.isEmpty)
-                    const _EmptyAvailableReportCard()
-                  else
-                    ...dispatchController.availableReports.map((report) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _AvailableReportCard(
-                          report: report,
-                          isActionLoading: dispatchController.isActionLoading,
-                          onDetail: () {
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.reportDetail,
-                              arguments: report.id,
-                            );
-                          },
-                          onAccept: () => _handleAcceptAvailableReport(report),
-                        ),
-                      );
-                    }),
                   const SizedBox(height: 20),
                   const _SectionTitle(title: 'Dispatch Aktif'),
                   const SizedBox(height: 12),
@@ -861,6 +891,41 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           onStart: () => _handleStart(dispatch),
                           onArrive: () => _handleArrive(dispatch),
                           onComplete: () => _showCompleteNotesDialog(dispatch),
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 20),
+                  const _SectionTitle(title: 'Laporan Tersedia'),
+                  const SizedBox(height: 12),
+                  if (hasActiveDispatch)
+                    const _ActiveDispatchWarningCard()
+                  else if (dispatchController.isAvailableReportsLoading &&
+                      dispatchController.availableReports.isEmpty)
+                    const _LoadingCard()
+                  else if (dispatchController.errorMessage != null &&
+                      dispatchController.availableReports.isEmpty &&
+                      dispatchController.dispatches.isEmpty)
+                    _ErrorCard(
+                      message: dispatchController.errorMessage!,
+                      onRetry: _refresh,
+                    )
+                  else if (dispatchController.availableReports.isEmpty)
+                    const _EmptyAvailableReportCard()
+                  else
+                    ...dispatchController.availableReports.map((report) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _AvailableReportCard(
+                          report: report,
+                          isActionLoading: dispatchController.isActionLoading,
+                          onDetail: () {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.reportDetail,
+                              arguments: report.id,
+                            );
+                          },
+                          onAccept: () => _handleAcceptAvailableReport(report),
                         ),
                       );
                     }),
@@ -1867,6 +1932,62 @@ class _ErrorCard extends StatelessWidget {
                 color: Color(0xFFF4BB00),
                 fontWeight: FontWeight.w900,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveDispatchWarningCard extends StatelessWidget {
+  const _ActiveDispatchWarningCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEDD5).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFFB923C).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFB923C).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(
+              Icons.lock_clock_rounded,
+              size: 34,
+              color: Color(0xFFEA580C),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Sedang Ada Dispatch Aktif',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF7C2D12),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Selesaikan dispatch aktif terlebih dahulu sebelum menerima laporan baru.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF9A3412),
+              height: 1.4,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
