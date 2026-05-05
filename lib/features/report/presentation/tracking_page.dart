@@ -55,6 +55,7 @@ class _TrackingPageState extends State<TrackingPage> {
     _socketService.leaveReport(widget.reportId);
     _socketService.off('connect');
     _socketService.off('connect_error');
+    _socketService.off('disconnect');
     _socketService.off('officer:location_updated');
     _socketService.off('dispatch:updated');
     _socketService.off('report:updated');
@@ -75,62 +76,79 @@ class _TrackingPageState extends State<TrackingPage> {
     final token = authController.accessToken;
 
     if (token == null || token.isEmpty) {
-      debugPrint('Socket skipped: access token not found');
+      debugPrint('Tracking socket skipped: access token not found');
       return;
     }
 
     _socketService.connect(
       baseUrl: ApiConstants.socketBaseUrl,
       token: token,
+      autoConnect: false,
     );
 
     _socketService.on('connect', (_) {
-      debugPrint('Socket connected');
+      debugPrint('Tracking socket connected');
       _socketService.joinReport(widget.reportId);
+      debugPrint('Tracking joined report room => ${widget.reportId}');
     });
 
     _socketService.on('connect_error', (error) {
-      debugPrint('Socket connect error: $error');
+      debugPrint('Tracking socket connect error: $error');
     });
 
-    _socketService.on('officer:location_updated', (data) {
-      debugPrint('REALTIME MOVE => $data');
+    _socketService.on('disconnect', (data) {
+      debugPrint('Tracking socket disconnected => $data');
+    });
+
+    _socketService.on('officer:location_updated', (data) async {
+      debugPrint('TRACKING LOCATION EVENT => $data');
 
       if (data is! Map) return;
 
-      final reportId = data['reportId']?.toString();
-      if (reportId != widget.reportId) return;
+      final eventReportId = data['reportId']?.toString();
+
+      debugPrint('TRACKING EVENT REPORT ID => $eventReportId');
+      debugPrint('TRACKING PAGE REPORT ID => ${widget.reportId}');
+
+      if (eventReportId != widget.reportId) return;
 
       final lat = double.tryParse(data['latitude']?.toString() ?? '');
       final lng = double.tryParse(data['longitude']?.toString() ?? '');
+
+      debugPrint('TRACKING EVENT LAT => $lat');
+      debugPrint('TRACKING EVENT LNG => $lng');
 
       if (lat == null || lng == null) return;
 
       final controller = context.read<EmergencyReportController>();
       final report = controller.selectedReport;
 
-      if (report == null) return;
+      if (report == null) {
+        debugPrint('TRACKING EVENT SKIPPED: report is null');
+        return;
+      }
 
       final newPosition = LatLng(lat, lng);
       final userLocation = _getUserLocation(report);
+
+      if (!mounted) return;
 
       setState(() {
         _currentOfficerPosition = newPosition;
       });
 
-      _loadRealRoute(
+      await _loadRealRoute(
         from: newPosition,
         to: userLocation,
       );
 
-      _mapController.move(
-        newPosition,
-        _mapController.camera.zoom,
-      );
+      if (!mounted) return;
+
+      _fitMarkers(newPosition, userLocation);
     });
 
     _socketService.on('dispatch:updated', (data) async {
-      debugPrint('Socket dispatch:status_updated => $data');
+      debugPrint('Tracking dispatch:updated => $data');
 
       final reportId = data is Map ? data['reportId']?.toString() : null;
       if (reportId != widget.reportId) return;
@@ -139,19 +157,21 @@ class _TrackingPageState extends State<TrackingPage> {
     });
 
     _socketService.on('report:updated', (data) async {
-      debugPrint('Socket report:status_updated => $data');
+      debugPrint('Tracking report:updated => $data');
 
       final reportId = data is Map ? data['reportId']?.toString() : null;
       if (reportId != widget.reportId) return;
 
       await _refreshTrackingData();
     });
+
+    _socketService.start();
   }
 
   void _startPollingFallback() {
     _pollingTimer?.cancel();
 
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       await _refreshTrackingData();
     });
   }
@@ -188,16 +208,19 @@ class _TrackingPageState extends State<TrackingPage> {
       );
 
       if (officerLocation != null) {
-        _currentOfficerPosition = officerLocation;
-      }
+        if (mounted) {
+          setState(() {
+            _currentOfficerPosition = officerLocation;
+          });
+        }
 
-      if (officerLocation != null) {
         await _loadRealRoute(
           from: officerLocation,
           to: userLocation,
         );
       } else {
         if (!mounted) return;
+
         setState(() {
           _routePoints = [];
           _etaText = 'Menunggu lokasi petugas';
@@ -208,7 +231,12 @@ class _TrackingPageState extends State<TrackingPage> {
       if (!mounted) return;
 
       if (!_hasMovedInitially || initialMove) {
-        _mapController.move(userLocation, 14);
+        if (officerLocation != null) {
+          _fitMarkers(officerLocation, userLocation);
+        } else {
+          _mapController.move(userLocation, 14);
+        }
+
         _hasMovedInitially = true;
       } else if (officerLocation != null) {
         _fitMarkers(officerLocation, userLocation);
@@ -285,13 +313,13 @@ class _TrackingPageState extends State<TrackingPage> {
 
   void _applyFallbackEta(LatLng from, LatLng to) {
     final meters = _distance.as(LengthUnit.Meter, from, to);
-    final estimatedMinutes = ((meters / 1000) / 30 * 60).round();
 
     if (!mounted) return;
+
     setState(() {
       _routePoints = [from, to];
-      _etaText = estimatedMinutes <= 0 ? '1 menit' : '$estimatedMinutes menit';
-      _distanceText = _formatDistance(meters);
+      _etaText = 'Perkiraan tidak tersedia';
+      _distanceText = '${_formatDistance(meters)} garis lurus';
     });
   }
 

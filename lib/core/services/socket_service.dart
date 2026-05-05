@@ -5,10 +5,17 @@ class SocketService {
 
   io.Socket? get socket => _socket;
 
+  bool get isConnected => _socket?.connected == true;
+
   void connect({
     required String baseUrl,
     required String token,
+    bool autoConnect = true,
   }) {
+    if (_socket != null) {
+      disconnect();
+    }
+
     _socket = io.io(
       baseUrl,
       io.OptionBuilder()
@@ -18,7 +25,13 @@ class SocketService {
           .build(),
     );
 
-    _socket!.connect();
+    if (autoConnect) {
+      _socket!.connect();
+    }
+  }
+
+  void start() {
+    _socket?.connect();
   }
 
   void joinReport(String reportId) {
